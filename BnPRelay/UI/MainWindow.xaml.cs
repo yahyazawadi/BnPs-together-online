@@ -226,9 +226,45 @@ namespace BnPRelay
                     Dispatcher.Invoke(() => SetStatus("* Relay active (memory attach failed — RNG sync limited)"));
             });
 
-            // Launch Undertale via Steam
-            try { Process.Start(new ProcessStartInfo("steam://run/1252690") { UseShellExecute = true }); }
-            catch { SetStatus("Could not launch Undertale via Steam. Launch it manually."); }
+            // Launch Undertale directly if found, otherwise via Steam AppID 391540
+            string[] gamePaths = {
+                @"C:\Program Files (x86)\Steam\steamapps\common\Undertale\UNDERTALE.exe",
+                @"C:\Program Files\Steam\steamapps\common\Undertale\UNDERTALE.exe",
+                @"D:\SteamLibrary\steamapps\common\Undertale\UNDERTALE.exe",
+                @"E:\SteamLibrary\steamapps\common\Undertale\UNDERTALE.exe"
+            };
+
+            bool launched = false;
+            foreach (var path in gamePaths)
+            {
+                if (System.IO.File.Exists(path))
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(path)
+                        {
+                            WorkingDirectory = System.IO.Path.GetDirectoryName(path),
+                            UseShellExecute = true
+                        });
+                        launched = true;
+                        break;
+                    }
+                    catch { }
+                }
+            }
+
+            if (!launched)
+            {
+                try
+                {
+                    // Undertale Steam AppID is 391540
+                    Process.Start(new ProcessStartInfo("steam://run/391540") { UseShellExecute = true });
+                }
+                catch
+                {
+                    SetStatus("Please launch Undertale manually.");
+                }
+            }
         }
 
         private void BtnCopyLink_Click(object sender, RoutedEventArgs e)
@@ -236,26 +272,16 @@ namespace BnPRelay
             string ip = GetLocalIp();
             string link = $"bnptogether://{ip}";
 
-            // Safe clipboard set with retry loop (handles transient Windows clipboard locks)
-            bool copied = false;
-            for (int i = 0; i < 5; i++)
+            try
             {
-                try
-                {
-                    Clipboard.SetDataObject(link, true);
-                    copied = true;
-                    break;
-                }
-                catch
-                {
-                    System.Threading.Thread.Sleep(50);
-                }
-            }
-
-            if (copied)
+                // STA-safe Ole clipboard set
+                System.Windows.Clipboard.SetDataObject(link, true);
                 SetStatus($"* Invite link copied! ({link})");
-            else
-                SetStatus($"* Could not access clipboard. Your IP is: {ip}");
+            }
+            catch
+            {
+                SetStatus($"* Invite Link: {link}");
+            }
         }
 
         private void BtnRestore_Click(object sender, RoutedEventArgs e)
