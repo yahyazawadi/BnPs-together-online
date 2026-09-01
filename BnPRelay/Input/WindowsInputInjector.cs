@@ -51,12 +51,20 @@ namespace BnPRelay
         {
             if (_hwnd != IntPtr.Zero) return;
 
-            // Try window title first
-            IntPtr hwnd = FindWindow(null, "UNDERTALE");
+            // Try window titles first
+            string[] titles = { "UNDERTALE: Bits and Pieces", "UNDERTALE", "UNDERTALE " };
+            IntPtr hwnd = IntPtr.Zero;
+            foreach (var title in titles)
+            {
+                hwnd = FindWindow(null, title);
+                if (hwnd != IntPtr.Zero) break;
+            }
+
             if (hwnd == IntPtr.Zero)
             {
-                // Fallback: search by process name
+                // Fallback: search by process name (UNDERTALE or UNDERTALEBNP)
                 var procs = Process.GetProcessesByName("UNDERTALE");
+                if (procs.Length == 0) procs = Process.GetProcessesByName("UNDERTALEBNP");
                 if (procs.Length > 0) hwnd = procs[0].MainWindowHandle;
             }
 

@@ -67,6 +67,7 @@ namespace BnPRelay.Sync
         public bool Attach()
         {
             var procs = Process.GetProcessesByName("UNDERTALE");
+            if (procs.Length == 0) procs = Process.GetProcessesByName("UNDERTALEBNP");
             if (procs.Length == 0) return false;
 
             _gameProcess = procs[0];
