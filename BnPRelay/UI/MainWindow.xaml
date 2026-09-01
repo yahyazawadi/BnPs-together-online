@@ -27,13 +27,21 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <!-- Header -->
-        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
-            <TextBlock x:Name="SoulHeart" Text="♥ " FontSize="18"
-                       Foreground="#FF3040"
-                       FontFamily="{StaticResource DeterminationFont}"/>
+        <!-- Header with Dual Overlapping Souls (Red P1 + Cyan P2) -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,14">
+            <Grid Width="32" Height="22" Margin="0,0,10,0" VerticalAlignment="Center">
+                <!-- Cyan Soul (P2 - slightly back/right) -->
+                <Image Source="/UI/Assets/heart_cyan.png" Width="18" Height="18"
+                       HorizontalAlignment="Right" VerticalAlignment="Bottom"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor" Opacity="0.9"/>
+                <!-- Red Soul (P1 - front/left) -->
+                <Image Source="/UI/Assets/heart_red.png" Width="18" Height="18"
+                       HorizontalAlignment="Left" VerticalAlignment="Top"
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
+            </Grid>
             <TextBlock Text="BnP Together ONLINE"
-                       Style="{StaticResource PixelTextLarge}"/>
+                       Style="{StaticResource PixelTextLarge}"
+                       VerticalAlignment="Center"/>
         </StackPanel>
 
         <!-- Main content panel: swapped between Connect, Hosting, Connected -->

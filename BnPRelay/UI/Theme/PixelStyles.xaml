@@ -7,8 +7,8 @@
          Palette: pure black/white + Undertale red soul accent
     ========================================================= -->
 
-    <!-- Fonts: Embedded Determination Mono -->
-    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono, pack://application:,,,/UI/Assets/Fonts/#DeterminationMono, Consolas</FontFamily>
+    <!-- Fonts: Embedded Determination Mono Web -->
+    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono Web, ./UI/Assets/Fonts/#Determination Mono Web, Determination Mono Web</FontFamily>
 
     <!-- Color Palette -->
     <SolidColorBrush x:Key="BgBlack"       Color="#000000"/>

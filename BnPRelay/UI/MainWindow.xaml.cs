@@ -34,10 +34,6 @@ namespace BnPRelay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            // Start the heart pulse animation
-            var sb = (Storyboard)Resources["HeartPulse"];
-            sb.Begin();
-
             // Install the system-wide keyboard hook
             _keyHook.KeyStateChanged += OnKeyStateChanged;
             _keyHook.Install();

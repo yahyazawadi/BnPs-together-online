@@ -12,10 +12,11 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <ApplicationIcon>UI\Assets\heart.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
-    <Resource Include="UI\Assets\Fonts\*.ttf" />
+    <Resource Include="UI\Assets\**\*" />
   </ItemGroup>
 
 </Project>
