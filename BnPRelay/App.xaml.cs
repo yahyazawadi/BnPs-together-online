@@ -1,4 +1,5 @@
 using System;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 
@@ -9,12 +10,23 @@ namespace BnPRelay
     /// </summary>
     public partial class App : Application
     {
+        [DllImport("shell32.dll", SetLastError = true)]
+        private static extern void SetCurrentProcessExplicitAppUserModelID([MarshalAs(UnmanagedType.LPWStr)] string AppID);
+
+        private const string AppUserModelId = "BnPTogether.Online.Relay.1.0";
+
         /// <summary>ZeroTier IP extracted from bnptogether:// deep link, if applicable.</summary>
         public static string? DeepLinkHostIp { get; private set; }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            try
+            {
+                SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
+            }
+            catch { }
 
             Logger.Log("=== BnPRelay Started ===");
             Logger.Log($"Operating System: {Environment.OSVersion}");
