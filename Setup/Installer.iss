@@ -152,11 +152,12 @@ begin
     DesktopShortcut := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
     if FileExists(DesktopShortcut) then
       DeleteFile(DesktopShortcut);
-
+    // 4. Delete Start Menu folder
     StartMenuFolder := ExpandConstant('{autoprograms}\{#MyAppName}');
     if DirExists(StartMenuFolder) then
       DelTree(StartMenuFolder, True, True, True);
 
+    // 5. Clean registry uninstall keys & protocol
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1');
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\bnptogether');
 

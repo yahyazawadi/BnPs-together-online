@@ -36,15 +36,30 @@ namespace BnPRelay
             _listener = new TcpListener(IPAddress.Any, Port);
             _listener.Start();
             Logger.Log($"[Host] Listening on port {Port}...");
-            _client = await _listener.AcceptTcpClientAsync(_cts.Token);
-            _listener.Stop();
 
-            ConfigureSocket(_client);
-            Logger.Log($"[Host] Client connected from {_client.Client.RemoteEndPoint}");
-            StatusChanged?.Invoke("Client connected — performing handshake...");
-            ClientConnected?.Invoke();
+            while (!_cts.IsCancellationRequested)
+            {
+                try
+                {
+                    StatusChanged?.Invoke("Waiting for friend to connect...");
+                    _client = await _listener.AcceptTcpClientAsync(_cts.Token);
 
-            await RunSessionAsync(_client, _cts.Token);
+                    ConfigureSocket(_client);
+                    Logger.Log($"[Host] Client connected from {_client.Client.RemoteEndPoint}");
+                    StatusChanged?.Invoke("Client connected — performing handshake...");
+                    ClientConnected?.Invoke();
+
+                    await RunSessionAsync(_client, _cts.Token);
+                }
+                catch (OperationCanceledException) { break; }
+                catch (Exception ex)
+                {
+                    Logger.Log($"[Host] Session dropped: {ex.Message}");
+                    ClientDisconnected?.Invoke();
+                }
+            }
+
+            try { _listener.Stop(); } catch { }
         }
 
         public async Task SendInputAsync(InputBitmask mask)

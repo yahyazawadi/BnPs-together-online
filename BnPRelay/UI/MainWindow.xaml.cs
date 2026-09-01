@@ -295,11 +295,26 @@ namespace BnPRelay
 
         private static string GetLocalIp()
         {
-            // Find first ZeroTier-like IP (10.x.x.x range) or fall back to any local IP
-            foreach (var addr in System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName()))
+            // 1. Prefer ZeroTier or Tailscale IP (10.x.x.x, 100.x.x.x)
+            var addrs = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName());
+            foreach (var addr in addrs)
+            {
+                if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                {
+                    string s = addr.ToString();
+                    if (s.StartsWith("10.") || s.StartsWith("100."))
+                        return s;
+                }
+            }
+
+            // 2. Fall back to any non-loopback IPv4 (e.g. 192.168.x.x)
+            foreach (var addr in addrs)
+            {
                 if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                    addr.ToString().StartsWith("10."))
+                    !System.Net.IPAddress.IsLoopback(addr))
                     return addr.ToString();
+            }
+
             return "127.0.0.1";
         }
 
