@@ -234,8 +234,28 @@ namespace BnPRelay
         private void BtnCopyLink_Click(object sender, RoutedEventArgs e)
         {
             string ip = GetLocalIp();
-            Clipboard.SetText($"bnptogether://{ip}");
-            SetStatus($"* Invite link copied! Share it with your friend.");
+            string link = $"bnptogether://{ip}";
+
+            // Safe clipboard set with retry loop (handles transient Windows clipboard locks)
+            bool copied = false;
+            for (int i = 0; i < 5; i++)
+            {
+                try
+                {
+                    Clipboard.SetDataObject(link, true);
+                    copied = true;
+                    break;
+                }
+                catch
+                {
+                    System.Threading.Thread.Sleep(50);
+                }
+            }
+
+            if (copied)
+                SetStatus($"* Invite link copied! ({link})");
+            else
+                SetStatus($"* Could not access clipboard. Your IP is: {ip}");
         }
 
         private void BtnRestore_Click(object sender, RoutedEventArgs e)
