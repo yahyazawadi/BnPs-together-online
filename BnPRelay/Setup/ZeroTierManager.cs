@@ -97,17 +97,33 @@ namespace BnPRelay.Setup
         {
             try
             {
-                string cli = File.Exists(ZeroTierCliPath) ? ZeroTierCliPath : "zerotier-cli";
-                var psi = new ProcessStartInfo("cmd.exe", $"/c \"{cli}\" join {networkId}")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
+                string[] possibleClis = {
+                    @"C:\Program Files (x86)\ZeroTier\One\zerotier-cli.bat",
+                    @"C:\Program Files\ZeroTier\One\zerotier-cli.bat",
+                    @"C:\ProgramData\ZeroTier\One\zerotier-one_x64.exe"
                 };
-                var p = Process.Start(psi);
-                p?.WaitForExit(5000);
-                return p?.ExitCode == 0;
+
+                foreach (var cli in possibleClis)
+                {
+                    if (File.Exists(cli))
+                    {
+                        string args = cli.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
+                            ? $"-q join {networkId}"
+                            : $"join {networkId}";
+
+                        var psi = new ProcessStartInfo(cli, args)
+                        {
+                            CreateNoWindow = true,
+                            UseShellExecute = false
+                        };
+                        var p = Process.Start(psi);
+                        p?.WaitForExit(5000);
+                        if (p?.ExitCode == 0) return true;
+                    }
+                }
             }
-            catch { return false; }
+            catch { }
+            return false;
         }
     }
 }

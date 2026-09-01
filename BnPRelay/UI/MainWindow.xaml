@@ -76,6 +76,10 @@
                                     Style="{StaticResource PixelButton}"
                                     Click="BtnConnect_Click"/>
                         </Grid>
+                        <Button Content="[?] JOIN ZEROTIER NETWORK..."
+                                Style="{StaticResource PixelButton}"
+                                Margin="0,10,0,0"
+                                Click="BtnJoinZeroTier_Click"/>
                     </StackPanel>
                 </StackPanel>
 

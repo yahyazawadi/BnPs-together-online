@@ -238,6 +238,31 @@ namespace BnPRelay
             SetStatus("Connection cancelled. Enter host IP and try again.");
         }
 
+        private void BtnJoinZeroTier_Click(object sender, RoutedEventArgs e)
+        {
+            string networkId = Microsoft.VisualBasic.Interaction.InputBox(
+                "* Enter the 16-character ZeroTier Network ID from your host:",
+                "Join ZeroTier Network",
+                "");
+
+            if (!string.IsNullOrWhiteSpace(networkId))
+            {
+                networkId = networkId.Trim();
+                SetStatus($"* Joining ZeroTier Network {networkId}...");
+                bool ok = BnPRelay.Setup.ZeroTierManager.JoinNetwork(networkId);
+                if (ok)
+                {
+                    MessageBox.Show("* Joined ZeroTier network successfully!\n\nAsk the host to authorize your device in their ZeroTier dashboard.",
+                        "ZeroTier", MessageBoxButton.OK, MessageBoxImage.Information);
+                    SetStatus("* Joined ZeroTier network! Waiting for authorization...");
+                }
+                else
+                {
+                    SetStatus("* Failed to join ZeroTier network automatically. Check if ZeroTier is running.");
+                }
+            }
+        }
+
         // ─── BUTTONS ────────────────────────────────────────────────────────────
 
         private void BtnLaunch_Click(object sender, RoutedEventArgs e)
