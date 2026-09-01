@@ -370,25 +370,47 @@ namespace BnPRelay
 
         private static string GetLocalIp()
         {
-            // 1. Prefer ZeroTier or Tailscale IP (10.x.x.x, 100.x.x.x)
-            var addrs = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName());
-            foreach (var addr in addrs)
+            try
             {
-                if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                // 1. Prioritize ZeroTier Virtual Network Adapter
+                foreach (var ni in System.Net.NetworkInformation.NetworkInterface.GetAllNetworkInterfaces())
                 {
-                    string s = addr.ToString();
-                    if (s.StartsWith("10.") || s.StartsWith("100."))
-                        return s;
+                    if (ni.OperationalStatus == System.Net.NetworkInformation.OperationalStatus.Up &&
+                        (ni.Description.Contains("ZeroTier", StringComparison.OrdinalIgnoreCase) ||
+                         ni.Name.Contains("ZeroTier", StringComparison.OrdinalIgnoreCase)))
+                    {
+                        foreach (var ip in ni.GetIPProperties().UnicastAddresses)
+                        {
+                            if (ip.Address.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                                !System.Net.IPAddress.IsLoopback(ip.Address))
+                            {
+                                return ip.Address.ToString();
+                            }
+                        }
+                    }
+                }
+
+                // 2. Fall back to Tailscale (100.x.x.x) or other 10.x.x.x
+                var addrs = System.Net.Dns.GetHostAddresses(System.Net.Dns.GetHostName());
+                foreach (var addr in addrs)
+                {
+                    if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork)
+                    {
+                        string s = addr.ToString();
+                        if (s.StartsWith("10.") || s.StartsWith("100."))
+                            return s;
+                    }
+                }
+
+                // 3. Fall back to any non-loopback IPv4 (e.g. 192.168.x.x)
+                foreach (var addr in addrs)
+                {
+                    if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
+                        !System.Net.IPAddress.IsLoopback(addr))
+                        return addr.ToString();
                 }
             }
-
-            // 2. Fall back to any non-loopback IPv4 (e.g. 192.168.x.x)
-            foreach (var addr in addrs)
-            {
-                if (addr.AddressFamily == System.Net.Sockets.AddressFamily.InterNetwork &&
-                    !System.Net.IPAddress.IsLoopback(addr))
-                    return addr.ToString();
-            }
+            catch { }
 
             return "127.0.0.1";
         }
