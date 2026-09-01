@@ -1,6 +1,6 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; With Smart Existing Version Detection & Direct "Uninstall" / "Reinstall"
+; With Clean In-Place Reset and Process Termination
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -62,91 +62,99 @@ Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChang
 
 [UninstallDelete]
 Type: filesandordirs; Name: "{localappdata}\BnPTogether"
-Type: filesandordirs; Name: "{app}"
 
 [Code]
 var
   UninstallButton: TNewButton;
   IsAlreadyInstalled: Boolean;
-  UninstallerPath: String;
-  IsUninstallTriggered: Boolean;
+  InstalledAppDir: String;
 
-// Detect existing installation in registry
-function GetExistingUninstaller(): String;
+// Stop any running instance of BnPRelay
+procedure StopRunningProcesses();
+var
+  ErrorCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+end;
+
+// Detect existing installation directory from registry
+function GetExistingInstallDir(): String;
 var
   RegKey: String;
   ResultStr: String;
 begin
   RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1';
-  if RegQueryStringValue(HKCU, RegKey, 'UninstallString', ResultStr) then
-  begin
-    Result := RemoveQuotes(ResultStr);
-  end
-  else if RegQueryStringValue(HKLM, RegKey, 'UninstallString', ResultStr) then
-  begin
-    Result := RemoveQuotes(ResultStr);
-  end
+  if RegQueryStringValue(HKCU, RegKey, 'InstallLocation', ResultStr) then
+    Result := ResultStr
+  else if RegQueryStringValue(HKLM, RegKey, 'InstallLocation', ResultStr) then
+    Result := ResultStr
   else
     Result := '';
 end;
 
 procedure OnUninstallClick(Sender: TObject);
 var
-  ErrorCode: Integer;
+  DesktopShortcut: String;
+  StartMenuFolder: String;
 begin
-  if (UninstallerPath <> '') and FileExists(UninstallerPath) then
+  if MsgBox('Are you sure you want to completely remove BnP Together ONLINE and reset all caches?', mbConfirmation, MB_YESNO) = IDYES then
   begin
-    if MsgBox('Are you sure you want to completely uninstall BnP Together ONLINE and start fresh?', mbConfirmation, MB_YESNO) = IDYES then
-    begin
-      IsUninstallTriggered := True;
-      // Launch the uninstaller
-      ShellExec('open', UninstallerPath, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
-      // Cleanly exit the setup wizard with NO exit confirmation prompt
-      WizardForm.Close;
-    end;
-  end;
-end;
+    StopRunningProcesses();
 
-procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
-begin
-  if IsUninstallTriggered then
-  begin
-    Confirm := False;
-    Cancel := True;
+    // 1. Delete installed application directory
+    if (InstalledAppDir <> '') and DirExists(InstalledAppDir) then
+      DelTree(InstalledAppDir, True, True, True);
+
+    // 2. Delete LocalAppData logs/cache
+    if DirExists(ExpandConstant('{localappdata}\BnPTogether')) then
+      DelTree(ExpandConstant('{localappdata}\BnPTogether'), True, True, True);
+
+    // 3. Delete Desktop shortcut
+    DesktopShortcut := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
+    if FileExists(DesktopShortcut) then
+      DeleteFile(DesktopShortcut);
+
+    // 4. Delete Start Menu folder
+    StartMenuFolder := ExpandConstant('{autoprograms}\{#MyAppName}');
+    if DirExists(StartMenuFolder) then
+      DelTree(StartMenuFolder, True, True, True);
+
+    // 5. Clean registry uninstall keys & protocol
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1');
+    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\bnptogether');
+
+    MsgBox('BnP Together ONLINE has been completely removed and reset.', mbInformation, MB_OK);
+    WizardForm.Close;
   end;
 end;
 
 procedure InitializeWizard();
 begin
-  UninstallerPath := GetExistingUninstaller();
-  IsAlreadyInstalled := (UninstallerPath <> '') and FileExists(UninstallerPath);
+  InstalledAppDir := GetExistingInstallDir();
+  IsAlreadyInstalled := (InstalledAppDir <> '') and DirExists(InstalledAppDir);
 
   if IsAlreadyInstalled then
   begin
-    // Create direct Uninstall Button right next to Cancel button on the wizard
     UninstallButton := TNewButton.Create(WizardForm);
     UninstallButton.Parent := WizardForm;
     UninstallButton.Caption := 'Uninstall / Fresh Reset';
-    UninstallButton.Width := ScaleX(140);
+    UninstallButton.Width := ScaleX(145);
     UninstallButton.Height := WizardForm.CancelButton.Height;
-    UninstallButton.Left := WizardForm.ClientWidth - WizardForm.CancelButton.Width - ScaleX(150);
+    UninstallButton.Left := WizardForm.ClientWidth - WizardForm.CancelButton.Width - ScaleX(155);
     UninstallButton.Top := WizardForm.CancelButton.Top;
     UninstallButton.OnClick := @OnUninstallClick;
   end;
 end;
 
 function InitializeSetup(): Boolean;
-var
-  ErrorCode: Integer;
 begin
   Result := True;
-  ShellExec('open', 'taskkill.exe', '/F /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  StopRunningProcesses();
 end;
 
 function InitializeUninstall(): Boolean;
-var
-  ErrorCode: Integer;
 begin
   Result := True;
-  ShellExec('open', 'taskkill.exe', '/F /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  StopRunningProcesses();
 end;
