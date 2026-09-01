@@ -81,10 +81,10 @@ Each packet sent over TCP is framed with a 3-byte header:
 1. **Conflict Avoidance:** Removed `SetupMutex` to eliminate `"Setup is currently running"` false-positives.
 2. **Process Termination:** Kills existing `BnPRelay.exe` processes cleanly before overwrite.
 3. **Delete Installer Checkbox (Configurable Cleanup):**
-   - Instead of unconditional forced self-deletion, the Finished Page renders an interactive checkbox:
+   - Instead of unconditional forced self-deletion, the Finished Page natively renders an interactive checkbox:
      `[x] Delete installer after installation` (Checked/True by default).
-   - Positioned cleanly below `WizardForm.RunList` on `WizardForm.FinishedPage`.
-   - `DeinitializeSetup()` verifies `InstallSuccessful` and `DeleteInstallerCheckbox.Checked` before spawning the asynchronous self-purge process (`cmd.exe /c del /f /q`).
+   - Injected into Inno Setup's native `WizardForm.RunList` upon entering `CurPageChanged(wpFinished)` so it renders directly below `[x] Launch BnP Together ONLINE` with proper DPI scaling and styling.
+   - `DeinitializeSetup()` checks `WizardForm.RunList.Checked[DeleteCheckboxIndex]` and only deletes the `.exe` if the install completed and the user left the checkbox checked.
 4. **Fresh Reset Routine (`OnUninstallClick`):** Completely purges installation folder, `%localappdata%\BnPTogether`, desktop shortcuts, and registry uninstall keys.
 
 ---
