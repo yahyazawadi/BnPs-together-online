@@ -46,6 +46,9 @@ namespace BnPRelay
             _keyHook.KeyStateChanged += OnKeyStateChanged;
             _keyHook.Install();
 
+            // Ensure Windows Firewall permits incoming P2P connections on port 7777
+            _ = Task.Run(() => BnPRelay.Setup.ZeroTierManager.EnsureFirewallRules());
+
             // Check if ZeroTier is installed for P2P multiplayer
             if (!BnPRelay.Setup.ZeroTierManager.IsInstalled())
             {

@@ -125,5 +125,24 @@ namespace BnPRelay.Setup
             catch { }
             return false;
         }
+
+        /// <summary>Ensures port 7777 and BnPRelay.exe are permitted through Windows Firewall.</summary>
+        public static void EnsureFirewallRules()
+        {
+            try
+            {
+                string exe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                string script = $"netsh advfirewall firewall add rule name=\"BnP Together ONLINE Port\" dir=in action=allow protocol=TCP localport=7777; " +
+                                $"netsh advfirewall firewall add rule name=\"BnP Together ONLINE App\" dir=in action=allow program=\"{exe}\" enable=yes";
+
+                var psi = new ProcessStartInfo("powershell.exe", $"-NoProfile -WindowStyle Hidden -Command \"{script}\"")
+                {
+                    UseShellExecute = true,
+                    Verb = "runas"
+                };
+                Process.Start(psi);
+            }
+            catch { }
+        }
     }
 }
