@@ -8,7 +8,7 @@
     ========================================================= -->
 
     <!-- Fonts: Embedded Determination Mono Web -->
-    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono Web, ./UI/Assets/Fonts/#Determination Mono Web, Determination Mono Web</FontFamily>
+    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono Web, Determination Mono Web, Consolas</FontFamily>
 
     <!-- Color Palette -->
     <SolidColorBrush x:Key="BgBlack"       Color="#000000"/>

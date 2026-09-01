@@ -2,23 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BnP Together ONLINE"
-        Icon="UI/Assets/heart.ico"
+        Icon="pack://application:,,,/UI/Assets/heart.ico"
         Width="440" Height="320"
         MinWidth="440" MinHeight="320"
         ResizeMode="CanMinimize"
         Background="#000000"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded">
-
-    <Window.Resources>
-        <!-- Soul cursor animation: pulsing red heart -->
-        <Storyboard x:Key="HeartPulse" RepeatBehavior="Forever">
-            <DoubleAnimation Storyboard.TargetName="SoulHeart"
-                             Storyboard.TargetProperty="Opacity"
-                             From="1.0" To="0.3" Duration="0:0:0.6"
-                             AutoReverse="True"/>
-        </Storyboard>
-    </Window.Resources>
 
     <Grid Margin="16">
         <!-- TITLE -->
