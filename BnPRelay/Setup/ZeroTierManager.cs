@@ -1,0 +1,82 @@
+using System;
+using System.Diagnostics;
+using System.IO;
+using System.Net.Http;
+using System.Threading.Tasks;
+using Microsoft.Win32;
+
+namespace BnPRelay.Setup
+{
+    /// <summary>
+    /// Manages ZeroTier installation detection, automated silent MSI download,
+    /// and CLI connection for P2P multiplayer.
+    /// </summary>
+    public static class ZeroTierManager
+    {
+        private const string ZeroTierMsiUrl = "https://download.zerotier.com/dist/ZeroTier%20One.msi";
+        private const string ZeroTierExePath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-one_x64.exe";
+        private const string ZeroTierCliPath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-cli.bat";
+
+        /// <summary>Checks if ZeroTier service is installed on the local system.</summary>
+        public static bool IsInstalled()
+        {
+            return File.Exists(ZeroTierExePath) || 
+                   File.Exists(@"C:\Program Files\ZeroTier\One\zerotier-one_x64.exe");
+        }
+
+        /// <summary>Downloads and silently installs ZeroTier One via msiexec.</summary>
+        public static async Task<bool> InstallSilentlyAsync(Action<string>? progressCallback = null)
+        {
+            try
+            {
+                progressCallback?.Invoke("* Downloading ZeroTier P2P Network Service...");
+                string tempMsi = Path.Combine(Path.GetTempPath(), "ZeroTierOne_Setup.msi");
+
+                using (var http = new HttpClient())
+                using (var s = await http.GetStreamAsync(ZeroTierMsiUrl))
+                using (var fs = new FileStream(tempMsi, FileMode.Create))
+                {
+                    await s.CopyToAsync(fs);
+                }
+
+                progressCallback?.Invoke("* Installing ZeroTier silently...");
+                var psi = new ProcessStartInfo("msiexec.exe", $"/i \"{tempMsi}\" /qn /norestart")
+                {
+                    UseShellExecute = true,
+                    Verb = "runas" // Elevate UAC
+                };
+
+                var proc = Process.Start(psi);
+                if (proc != null)
+                {
+                    await proc.WaitForExitAsync();
+                    File.Delete(tempMsi);
+                    return proc.ExitCode == 0;
+                }
+            }
+            catch (Exception ex)
+            {
+                progressCallback?.Invoke($"[!] ZeroTier install error: {ex.Message}");
+            }
+            return false;
+        }
+
+        /// <summary>Joins a given ZeroTier network ID via CLI.</summary>
+        public static bool JoinNetwork(string networkId)
+        {
+            try
+            {
+                string cli = File.Exists(ZeroTierCliPath) ? ZeroTierCliPath : "zerotier-cli";
+                var psi = new ProcessStartInfo("cmd.exe", $"/c \"{cli}\" join {networkId}")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                var p = Process.Start(psi);
+                p?.WaitForExit(5000);
+                return p?.ExitCode == 0;
+            }
+            catch { return false; }
+        }
+    }
+}
