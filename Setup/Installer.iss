@@ -69,6 +69,7 @@ var
   UninstallButton: TNewButton;
   IsAlreadyInstalled: Boolean;
   UninstallerPath: String;
+  IsUninstallTriggered: Boolean;
 
 // Detect existing installation in registry
 function GetExistingUninstaller(): String;
@@ -97,9 +98,21 @@ begin
   begin
     if MsgBox('Are you sure you want to completely uninstall BnP Together ONLINE and start fresh?', mbConfirmation, MB_YESNO) = IDYES then
     begin
-      WizardForm.Close;
+      IsUninstallTriggered := True;
+      // Launch the uninstaller
       ShellExec('open', UninstallerPath, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+      // Cleanly exit the setup wizard with NO exit confirmation prompt
+      WizardForm.Close;
     end;
+  end;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if IsUninstallTriggered then
+  begin
+    Confirm := False;
+    Cancel := True;
   end;
 end;
 
