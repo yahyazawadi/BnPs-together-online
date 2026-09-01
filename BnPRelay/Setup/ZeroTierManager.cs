@@ -21,7 +21,9 @@ namespace BnPRelay.Setup
         public static bool IsInstalled()
         {
             return File.Exists(ZeroTierExePath) || 
-                   File.Exists(@"C:\Program Files\ZeroTier\One\zerotier-one_x64.exe");
+                   File.Exists(@"C:\Program Files\ZeroTier\One\zerotier-one_x64.exe") ||
+                   File.Exists(@"C:\ProgramData\ZeroTier\One\zerotier-one_x64.exe") ||
+                   Directory.Exists(@"C:\ProgramData\ZeroTier\One");
         }
 
         /// <summary>Downloads and silently installs ZeroTier One via msiexec.</summary>
