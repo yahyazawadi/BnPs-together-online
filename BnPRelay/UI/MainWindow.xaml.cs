@@ -1,6 +1,7 @@
 using System;
 using System.Diagnostics;
 using System.Windows;
+using System.Windows.Input;
 using System.Windows.Media.Animation;
 using BnPRelay.Sync;
 
@@ -12,6 +13,8 @@ namespace BnPRelay
         private ClientSession? _client;
         private readonly WindowsInputInjector _injector = new();
         private readonly SaveFileMirror _saveMirror = new();
+        private readonly LowLevelKeyboardHook _keyHook = new();
+        private InputBitmask _currentMask;   // live bitmask of currently-held keys
         private bool _isHost;
 
         public MainWindow()
@@ -33,6 +36,10 @@ namespace BnPRelay
             var sb = (Storyboard)Resources["HeartPulse"];
             sb.Begin();
 
+            // Install the system-wide keyboard hook
+            _keyHook.KeyStateChanged += OnKeyStateChanged;
+            _keyHook.Install();
+
             // If launched via bnptogether:// deep link, auto-fill IP and start join
             if (App.DeepLinkHostIp is { } ip)
             {
@@ -40,6 +47,29 @@ namespace BnPRelay
                 ShowJoinInput();
                 BeginJoin(ip);
             }
+        }
+
+        /// <summary>
+        /// Fires on every captured keypress. Converts to bitmask delta and
+        /// sends over the network. The game still receives the keystroke directly.
+        /// </summary>
+        private async void OnKeyStateChanged(Key key, bool isDown)
+        {
+            // Only relay when injection is enabled (after both clicked LAUNCH)
+            if (!_injector.IsAttached) return;
+
+            var newMask = InputNormalizer.FromKey(key, _currentMask, isDown);
+            if (newMask.Value == _currentMask.Value) return;  // no change, skip
+            _currentMask = newMask;
+
+            try
+            {
+                if (_isHost && _host != null)
+                    await _host.SendInputAsync(newMask);      // Host: relay P1 keys to client
+                else if (!_isHost && _client != null)
+                    await _client.SendInputAsync(newMask);    // Client: relay P2 keys to host
+            }
+            catch { /* session closed, ignore */ }
         }
 
         // ─── HOST ───────────────────────────────────────────────────────────────
@@ -180,6 +210,7 @@ namespace BnPRelay
 
         protected override void OnClosed(EventArgs e)
         {
+            _keyHook.Dispose();
             _injector.Dispose();
             _saveMirror.Dispose();
             _host?.Dispose();

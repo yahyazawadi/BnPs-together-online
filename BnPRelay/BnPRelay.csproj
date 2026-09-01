@@ -14,8 +14,4 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Resource Include="UI\Assets\**\*" />
-  </ItemGroup>
-
 </Project>

@@ -8,7 +8,9 @@
     ========================================================= -->
 
     <!-- Fonts: Determination Mono (Undertale menu font) -->
-    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono</FontFamily>
+    <!-- Install manually: copy determination_mono.ttf to C:\Windows\Fonts\ -->
+    <!-- Falls back to Consolas which has a similar monospace pixel feel -->
+    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono, Consolas, Courier New, monospace</FontFamily>
 
     <!-- Color Palette -->
     <SolidColorBrush x:Key="BgBlack"       Color="#000000"/>
