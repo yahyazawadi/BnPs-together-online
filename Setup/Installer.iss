@@ -1,7 +1,6 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; Automatically cleans prior installs, prevents "Folder Exists" warning,
-; and performs a fresh clean overwrite on every installation.
+; With Bulletproof Process Killer & Clean Safe Overwrite
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -31,7 +30,7 @@ SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
 SetupMutex=BnPTogetherSetupMutex
-CloseApplications=yes
+CloseApplications=force
 RestartApplications=no
 UninstallDisplayIcon={app}\UI\Assets\heart.ico
 UninstallDisplayName={#MyAppName}
@@ -44,8 +43,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Standalone published files
-Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+; Standalone published files with restartreplace to prevent DeleteFile Access Denied errors
+Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
 ; Fonts
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\BnPRelay\UI\Assets\Fonts\*.ttf"; DestDir: "{app}\UI\Assets\Fonts"; Flags: ignoreversion
 
@@ -72,12 +71,12 @@ var
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
 
-// Stop any running instance of BnPRelay
-procedure StopRunningProcesses();
+// Force kill BnPRelay and any child processes completely
+procedure KillBnPProcesses();
 var
   ErrorCode: Integer;
 begin
-  Exec('taskkill.exe', '/F /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('taskkill.exe', '/F /T /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
 
@@ -103,7 +102,7 @@ var
 begin
   if MsgBox('Are you sure you want to completely remove BnP Together ONLINE and reset all caches?', mbConfirmation, MB_YESNO) = IDYES then
   begin
-    StopRunningProcesses();
+    KillBnPProcesses();
 
     // 1. Delete installed application directory
     if (InstalledAppDir <> '') and DirExists(InstalledAppDir) then
@@ -150,31 +149,21 @@ begin
   end;
 end;
 
-// Before copying new files, automatically purge prior install to ensure clean fresh replacement
-procedure CurStepChanged(CurStep: TSetupStep);
-var
-  TargetDir: String;
+// Make sure processes are stopped immediately before any file copy begins
+function PrepareToInstall(var NeedsRestart: Boolean): String;
 begin
-  if CurStep = ssInstall then
-  begin
-    StopRunningProcesses();
-    TargetDir := ExpandConstant('{app}');
-    if DirExists(TargetDir) then
-    begin
-      // Clean previous binary files so new build is fresh with no stale files
-      DelTree(TargetDir, False, True, True);
-    end;
-  end;
+  KillBnPProcesses();
+  Result := '';
 end;
 
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  StopRunningProcesses();
+  KillBnPProcesses();
 end;
 
 function InitializeUninstall(): Boolean;
 begin
   Result := True;
-  StopRunningProcesses();
+  KillBnPProcesses();
 end;
