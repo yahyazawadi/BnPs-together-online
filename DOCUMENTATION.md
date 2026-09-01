@@ -154,3 +154,39 @@ Using `UndertaleModLib`, the following bytecode transforms were applied to `data
   - Neither player's animations are forcibly frozen or locked.
   - If a player (e.g. Host) presses Confirm (`Z` / `Enter`), the game skips/advances normally.
   - Battle encounters synchronize the RNG seed dynamically in memory without pausing or freezing the attack animation frame loop.
+
+---
+
+## 8. Development Chronicle & Solved Hurdles (The Journey)
+
+### 1. The Network & ZeroTier Setup Hurdles
+- **Problem: Port Binding & Local IP Collisions:** `GetLocalIp()` was picking up WSL (`172.x.x.x`), LAN (`192.168.x.x`), or Docker virtual adapters, leading to connection timeouts and "No such host is known" errors.
+  * *Fix:* Updated `MainWindow.xaml.cs` to filter `NetworkInterface.GetAllNetworkInterfaces()` and prioritize adapters explicitly named/described with `"ZeroTier"` (`10.x.x.x`).
+- **Problem: ZeroTier Join Permission Denied:** Joining ZeroTier via CLI failed because `authtoken.secret` in `C:\ProgramData\ZeroTier\One` requires administrator elevation.
+  * *Fix:* Executed the join command via elevated PowerShell (`Start-Process ... -Verb RunAs`).
+- **Problem: Windows Firewall Blocks:** Inbound connections on TCP `7777` were silently dropped by Windows Defender.
+  * *Fix:* Added `ZeroTierManager.EnsureFirewallRules()` to register firewall port rules automatically on first launch.
+
+### 2. The GameMaker Bytecode Crash
+- **Problem: `switch_controller_vibration_permitted` Fatal Error:** On game boot, GameMaker crashed with `Unable to find function switch_controller_vibration_permitted`.
+  * *Fix:* Reverse-engineered `data.win` with `UndertaleModLib`, converted Nintendo Switch pairing check (`obj_time_Step_1:717`) into an unconditional branch, redirected calls, and purged all 10 `switch_*` symbol entries from the `FUNC` chunk. Provided 1-click script `Setup/Fix-UndertaleDataWin.ps1`.
+
+### 3. The Intro Animation Sync & Black Screen Lock
+- **Problem: Friend's Game Stuck on Intro Screen:** Local Undertale Together only mapped Player 2 to `WASD/F/G`. When the game booted to the intro, it waited specifically for `Z` or `Enter` (Player 1 confirm). Injecting `F` was ignored by the intro scene controller.
+  * *Fix:* Updated `WindowsInputInjector.cs` to universally inject `VK_RETURN`, `VK_Z`, and `VK_SPACE` alongside P2 keys whenever Confirm is pressed, allowing host skips to advance both screens simultaneously.
+
+### 4. UI "Not Responding" Hangs
+- **Problem: SaveFileMirror UI Freeze:** `SaveFileMirror` executed synchronous `Thread.Sleep(100)` and file I/O operations directly on the thread during game save events, causing the WPF dispatcher to hang and trigger "Not Responding".
+  * *Fix:* Refactored `OnFileChanged` to dispatch I/O asynchronously via `Task.Run` with non-blocking `await Task.Delay(100)`.
+
+### 5. Single-Instance & Multiple Window Duplication
+- **Problem: Duplicate Instances:** Opening shortcuts repeatedly created multiple relay instances competing for socket port `7777` and keyboard hooks.
+  * *Fix:* Enforced a system-wide named Mutex (`BnPTogether_SingleInstance_Mutex`) in `App.xaml.cs`. If another instance exists, it calls Win32 `SetForegroundWindow` to bring the existing window to the front and terminates cleanly.
+
+### 6. Installer Bulletproofing & Size Optimization
+- **Problem: "Setup is currently running" Popup:** Inno Setup's `SetupMutex` blocked re-running installers.
+  * *Fix:* Removed `SetupMutex`, added multi-directory setup auto-cleaners (`Downloads`, `Telegram Desktop`, `Desktop`), and added an automatic self-deletion routine (`DeleteSelfInstaller`).
+- **Problem: 66 MB Setup vs 2 MB Lightweight Build:** Self-contained .NET 8 bundling inflated the installer to 66 MB.
+  * *Fix:* Switched to framework-dependent single-file publish (`--self-contained false`), reducing the setup executable from **66 MB to 2.1 MB** and the release zip to **225 KB**.
+- **Problem: In-App 1-Click Updater:** Added `[↓] UPDATE TO LATEST VERSION` button with semantic version comparison (`tag_name == currentVersion`) to check GitHub Releases without redundant downloads.
+- **Problem: Missing Desktop Shortcut Icon:** Fixed `heart.ico` extraction directly into application root `{app}\heart.ico` and flushed the Windows shell icon cache.
