@@ -39,19 +39,22 @@ namespace BnPRelay
             {
                 try
                 {
+                    Logger.Log($"[Client] Connecting to {_hostIp}:{Port}...");
                     StatusChanged?.Invoke($"Connecting to {_hostIp}:{Port}...");
                     _client = new TcpClient();
                     _client.NoDelay = true;
                     await _client.ConnectAsync(_hostIp, Port, _cts.Token);
                     ConfigureSocket(_client);
                     delay = 500;
+                    Logger.Log($"[Client] Successfully connected to {_hostIp}:{Port}");
                     StatusChanged?.Invoke("Connected!");
                     HostConnected?.Invoke();
                     await RunSessionAsync(_client, _cts.Token);
                 }
                 catch (OperationCanceledException) { break; }
-                catch
+                catch (Exception ex)
                 {
+                    Logger.Log($"[Client] Connection error to {_hostIp}: {ex.Message}");
                     HostDisconnected?.Invoke();
                     StatusChanged?.Invoke($"Disconnected. Retrying in {delay / 1000.0:F1}s...");
                     await Task.Delay(delay, _cts.Token);

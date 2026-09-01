@@ -38,6 +38,32 @@ namespace BnPRelay
             _keyHook.KeyStateChanged += OnKeyStateChanged;
             _keyHook.Install();
 
+            // Check if ZeroTier is installed for P2P multiplayer
+            if (!BnPRelay.Setup.ZeroTierManager.IsInstalled())
+            {
+                var res = MessageBox.Show(
+                    "* ZeroTier P2P Network Service is required for online multiplayer.\n\nWould you like to install ZeroTier automatically now?",
+                    "BnP Together ONLINE",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Information);
+
+                if (res == MessageBoxResult.Yes)
+                {
+                    SetStatus("* Installing ZeroTier P2P Service in background...");
+                    _ = Task.Run(async () =>
+                    {
+                        bool ok = await BnPRelay.Setup.ZeroTierManager.InstallSilentlyAsync(msg => Dispatcher.Invoke(() => SetStatus(msg)));
+                        Dispatcher.Invoke(() =>
+                        {
+                            if (ok)
+                                SetStatus("* ZeroTier installed successfully!");
+                            else
+                                SetStatus("* ZeroTier setup completed. Please join your friend's network.");
+                        });
+                    });
+                }
+            }
+
             // If launched via bnptogether:// deep link, auto-fill IP and start join
             if (App.DeepLinkHostIp is { } ip)
             {

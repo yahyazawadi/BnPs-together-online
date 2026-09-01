@@ -35,12 +35,12 @@ namespace BnPRelay
         {
             _listener = new TcpListener(IPAddress.Any, Port);
             _listener.Start();
-            StatusChanged?.Invoke("Listening on port 7777...");
-
+            Logger.Log($"[Host] Listening on port {Port}...");
             _client = await _listener.AcceptTcpClientAsync(_cts.Token);
             _listener.Stop();
 
             ConfigureSocket(_client);
+            Logger.Log($"[Host] Client connected from {_client.Client.RemoteEndPoint}");
             StatusChanged?.Invoke("Client connected — performing handshake...");
             ClientConnected?.Invoke();
 
