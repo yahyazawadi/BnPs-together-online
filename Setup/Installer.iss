@@ -116,6 +116,33 @@ begin
   end;
 end;
 
+// Searches Downloads folder and current folder for older setup duplicates and removes them
+procedure CleanLegacyInstallerFiles();
+var
+  FindRec: TFindRec;
+  DownloadsDir: String;
+  CurrentExeName: String;
+begin
+  DownloadsDir := ExpandConstant('{userdocs}\..\Downloads');
+  CurrentExeName := ExtractFileName(ExpandConstant('{srcexe}'));
+
+  if DirExists(DownloadsDir) then
+  begin
+    if FindFirst(DownloadsDir + '\*BnP*Together*ONLINE*Setup*.exe', FindRec) then
+    begin
+      try
+        repeat
+          // Delete older duplicate downloads (skip the currently running file)
+          if (FindRec.Name <> CurrentExeName) then
+            DeleteFile(DownloadsDir + '\' + FindRec.Name);
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
+    end;
+  end;
+end;
+
 // Detect existing installation directory from registry
 function GetExistingInstallDir(): String;
 var
@@ -201,6 +228,7 @@ begin
   ForceKillAllProcesses();
   TargetAppDir := ExpandConstant('{app}');
   SafePurgeDirectory(TargetAppDir);
+  CleanLegacyInstallerFiles();
   Result := '';
 end;
 
