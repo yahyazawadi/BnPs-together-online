@@ -70,6 +70,8 @@ var
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
   IsUninstallTriggered: Boolean;
+  DeleteInstallerCheckbox: TNewCheckBox;
+  InstallSuccessful: Boolean;
 
 // Thorough kill of any process holding the relay file, DLLs, or old setup instances
 procedure ForceKillAllProcesses();
@@ -241,6 +243,18 @@ begin
     UninstallButton.Top := WizardForm.CancelButton.Top;
     UninstallButton.OnClick := @OnUninstallClick;
   end;
+
+  // "Delete installer after installation" checkbox on Finished Page (checked by default)
+  DeleteInstallerCheckbox := TNewCheckBox.Create(WizardForm);
+  DeleteInstallerCheckbox.Parent := WizardForm.FinishedPage;
+  DeleteInstallerCheckbox.Caption := 'Delete installer after installation';
+  DeleteInstallerCheckbox.Checked := True;
+  DeleteInstallerCheckbox.Left := WizardForm.RunList.Left;
+  DeleteInstallerCheckbox.Width := WizardForm.RunList.Width;
+  DeleteInstallerCheckbox.Height := ScaleY(24);
+  WizardForm.RunList.Height := WizardForm.RunList.Height - ScaleY(30);
+  DeleteInstallerCheckbox.Top := WizardForm.RunList.Top + WizardForm.RunList.Height + ScaleY(8);
+  DeleteInstallerCheckbox.TabOrder := WizardForm.RunList.TabOrder + 1;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -250,7 +264,6 @@ begin
   ForceKillAllProcesses();
   TargetAppDir := ExpandConstant('{app}');
   SafePurgeDirectory(TargetAppDir);
-  CleanLegacyInstallerFiles();
   Result := '';
 end;
 
@@ -266,7 +279,16 @@ begin
   ForceKillAllProcesses();
 end;
 
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssDone then
+    InstallSuccessful := True;
+end;
+
 procedure DeinitializeSetup();
 begin
-  DeleteSelfInstaller();
+  if InstallSuccessful and (DeleteInstallerCheckbox <> nil) and DeleteInstallerCheckbox.Checked then
+  begin
+    DeleteSelfInstaller();
+  end;
 end;
