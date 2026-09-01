@@ -1,6 +1,7 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; With Bulletproof Process Killer & Clean Safe Overwrite
+; Self-contained installer with automated file unlock, rename fallback,
+; and process killing in pure Pascal script.
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -43,8 +44,8 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Standalone published files with restartreplace to prevent DeleteFile Access Denied errors
-Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace uninsrestartdelete
+; Notice: ignoreversion + restartreplace ensures locked files are cleanly renamed/replaced
+Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 ; Fonts
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\BnPRelay\UI\Assets\Fonts\*.ttf"; DestDir: "{app}\UI\Assets\Fonts"; Flags: ignoreversion
 
@@ -71,13 +72,30 @@ var
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
 
-// Force kill BnPRelay and any child processes completely
-procedure KillBnPProcesses();
+// Thorough kill of any process holding the relay file
+procedure ForceKillAllProcesses();
 var
   ErrorCode: Integer;
 begin
   Exec('taskkill.exe', '/F /T /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-Process -Name BnPRelay -ErrorAction SilentlyContinue | Stop-Process -Force"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+end;
+
+// If a file is stubbornly locked by Windows Explorer or another tool, rename it away so the new one can write freely
+procedure UnlockAndClearFile(FilePath: String);
+var
+  OldPath: String;
+begin
+  if FileExists(FilePath) then
+  begin
+    if not DeleteFile(FilePath) then
+    begin
+      OldPath := FilePath + '.old_' + GetDateTimeString('yyyymmddhhnnss', #0, #0);
+      RenameFile(FilePath, OldPath);
+      DeleteFile(OldPath);
+    end;
+  end;
 end;
 
 // Detect existing installation directory from registry
@@ -102,27 +120,25 @@ var
 begin
   if MsgBox('Are you sure you want to completely remove BnP Together ONLINE and reset all caches?', mbConfirmation, MB_YESNO) = IDYES then
   begin
-    KillBnPProcesses();
+    ForceKillAllProcesses();
 
-    // 1. Delete installed application directory
     if (InstalledAppDir <> '') and DirExists(InstalledAppDir) then
+    begin
+      UnlockAndClearFile(InstalledAppDir + '\BnPRelay.exe');
       DelTree(InstalledAppDir, True, True, True);
+    end;
 
-    // 2. Delete LocalAppData logs/cache
     if DirExists(ExpandConstant('{localappdata}\BnPTogether')) then
       DelTree(ExpandConstant('{localappdata}\BnPTogether'), True, True, True);
 
-    // 3. Delete Desktop shortcut
     DesktopShortcut := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
     if FileExists(DesktopShortcut) then
       DeleteFile(DesktopShortcut);
 
-    // 4. Delete Start Menu folder
     StartMenuFolder := ExpandConstant('{autoprograms}\{#MyAppName}');
     if DirExists(StartMenuFolder) then
       DelTree(StartMenuFolder, True, True, True);
 
-    // 5. Clean registry uninstall keys & protocol
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1');
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\bnptogether');
 
@@ -149,21 +165,24 @@ begin
   end;
 end;
 
-// Make sure processes are stopped immediately before any file copy begins
 function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  TargetAppDir: String;
 begin
-  KillBnPProcesses();
+  ForceKillAllProcesses();
+  TargetAppDir := ExpandConstant('{app}');
+  UnlockAndClearFile(TargetAppDir + '\BnPRelay.exe');
   Result := '';
 end;
 
 function InitializeSetup(): Boolean;
 begin
   Result := True;
-  KillBnPProcesses();
+  ForceKillAllProcesses();
 end;
 
 function InitializeUninstall(): Boolean;
 begin
   Result := True;
-  KillBnPProcesses();
+  ForceKillAllProcesses();
 end;
