@@ -151,13 +151,24 @@ namespace BnPRelay
 
         private void BtnConnect_Click(object sender, RoutedEventArgs e)
         {
-            string ip = TxtHostIp.Text.Trim();
-            if (string.IsNullOrEmpty(ip)) { SetStatus("Please enter the host IP."); return; }
-            BeginJoin(ip);
+            string raw = TxtHostIp.Text.Trim();
+            if (string.IsNullOrEmpty(raw)) { SetStatus("Please enter the host IP."); return; }
+            BeginJoin(raw);
         }
 
-        private void BeginJoin(string ip)
+        private void BeginJoin(string rawIp)
         {
+            // Sanitize input: Strip bnptogether://, http://, trailing slashes, and port if user pasted full URL
+            string ip = rawIp.Trim();
+            if (ip.StartsWith("bnptogether://", StringComparison.OrdinalIgnoreCase))
+                ip = ip["bnptogether://".Length..];
+            if (ip.StartsWith("http://", StringComparison.OrdinalIgnoreCase))
+                ip = ip["http://".Length..];
+            ip = ip.Trim().TrimEnd('/');
+            if (ip.Contains(':'))
+                ip = ip.Split(':')[0]; // keep only IP part
+
+            TxtHostIp.Text = ip;
             _isHost = false;
             PanelConnect.Visibility = Visibility.Collapsed;
             SetStatus($"Connecting to {ip}...");
