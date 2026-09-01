@@ -60,6 +60,12 @@
                             Margin="0,8,0,0"
                             Click="BtnJoinZeroTier_Click"/>
 
+                    <Button x:Name="BtnCheckUpdate"
+                            Content="[↓] UPDATE TO LATEST VERSION"
+                            Style="{StaticResource PixelButton}"
+                            Margin="0,6,0,0"
+                            Click="BtnCheckUpdate_Click"/>
+
                     <!-- Join IP input (hidden until JOIN clicked) -->
                     <StackPanel x:Name="PanelJoinInput" Visibility="Collapsed" Margin="0,6,0,0">
                         <TextBlock Text="* Enter host IP:" Style="{StaticResource PixelText}" Margin="0,0,0,4"/>

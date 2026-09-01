@@ -294,6 +294,77 @@ namespace BnPRelay
             }
         }
 
+        private async void BtnCheckUpdate_Click(object sender, RoutedEventArgs e)
+        {
+            BtnCheckUpdate.IsEnabled = false;
+            SetStatus("* Checking GitHub for latest release...");
+
+            try
+            {
+                using var http = new System.Net.Http.HttpClient();
+                http.DefaultRequestHeaders.Add("User-Agent", "BnP-Together-Relay");
+                string apiUrl = "https://api.github.com/repos/yahyazawadi/BnPs-together-online/releases/latest";
+                string json = await http.GetStringAsync(apiUrl);
+
+                // Find download URL for BnPRelay-Release.zip or Setup
+                string downloadUrl = "";
+                string pattern = @"""browser_download_url"":\s*""([^""]+BnPRelay-Release\.zip|[^""]+\.zip|[^""]+Setup\.exe)""";
+                var match = System.Text.RegularExpressions.Regex.Match(json, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+                if (match.Success)
+                    downloadUrl = match.Groups[1].Value;
+                else
+                {
+                    // Fallback to zipball
+                    var tagMatch = System.Text.RegularExpressions.Regex.Match(json, @"""tag_name"":\s*""([^""]+)""");
+                    string tag = tagMatch.Success ? tagMatch.Groups[1].Value : "main";
+                    downloadUrl = $"https://github.com/yahyazawadi/BnPs-together-online/archive/refs/tags/{tag}.zip";
+                }
+
+                SetStatus("* Downloading latest update from GitHub...");
+                string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BnPUpdate");
+                System.IO.Directory.CreateDirectory(tempDir);
+                string zipPath = System.IO.Path.Combine(tempDir, "update.zip");
+
+                byte[] zipBytes = await http.GetByteArrayAsync(downloadUrl);
+                await System.IO.File.WriteAllBytesAsync(zipPath, zipBytes);
+
+                SetStatus("* Installing update and restarting...");
+
+                // Create detached updater batch script
+                string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
+                string appDir = System.IO.Path.GetDirectoryName(currentExe) ?? "";
+                string batchScript = System.IO.Path.Combine(tempDir, "updater.bat");
+
+                string batContent = $@"@echo off
+timeout /t 1 /nobreak > nul
+taskkill /F /IM BnPRelay.exe > nul 2>&1
+powershell.exe -NoProfile -Command ""Expand-Archive -Path '{zipPath}' -DestinationPath '{tempDir}\extracted' -Force""
+if exist ""{tempDir}\extracted\BnPRelay.exe"" (
+    copy /y ""{tempDir}\extracted\*.*"" ""{appDir}\"" > nul 2>&1
+)
+start """" ""{currentExe}""
+del /f /q ""{zipPath}""
+";
+                await System.IO.File.WriteAllTextAsync(batchScript, batContent);
+
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd.exe",
+                    Arguments = $"/c \"{batchScript}\"",
+                    WindowStyle = ProcessWindowStyle.Hidden,
+                    CreateNoWindow = true,
+                    UseShellExecute = true
+                });
+
+                Application.Current.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                SetStatus($"* Update check failed: {ex.Message}");
+                BtnCheckUpdate.IsEnabled = true;
+            }
+        }
+
         private string _lastNetworkId = "";
 
         private void LoadSavedConfig()
