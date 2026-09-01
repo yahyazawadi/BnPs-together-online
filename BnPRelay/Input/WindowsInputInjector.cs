@@ -34,6 +34,12 @@ namespace BnPRelay
         private const int VK_F = 0x46;
         private const int VK_G = 0x47;
 
+        // Standard Undertale Confirm / Skip keys
+        private const int VK_Z      = 0x5A;
+        private const int VK_C      = 0x43;
+        private const int VK_RETURN = 0x0D;
+        private const int VK_SPACE  = 0x20;
+
         private IntPtr _hwnd = IntPtr.Zero;
         private InputBitmask _lastMask;
         private readonly Timer _pollTimer;
@@ -82,12 +88,18 @@ namespace BnPRelay
         {
             if (_hwnd == IntPtr.Zero || !_enabled) return;
 
+            // Player 2 Movement & Actions
             ApplyKey(VK_W, _lastMask.Up,      newMask.Up);
             ApplyKey(VK_A, _lastMask.Left,    newMask.Left);
             ApplyKey(VK_S, _lastMask.Down,    newMask.Down);
             ApplyKey(VK_D, _lastMask.Right,   newMask.Right);
             ApplyKey(VK_F, _lastMask.Confirm, newMask.Confirm);
             ApplyKey(VK_G, _lastMask.Cancel,  newMask.Cancel);
+
+            // Also forward Confirm / Skip keys (Z, Enter, Space) so Host skipping the intro or menus advances Client immediately
+            ApplyKey(VK_Z,      _lastMask.Confirm, newMask.Confirm);
+            ApplyKey(VK_RETURN, _lastMask.Confirm, newMask.Confirm);
+            ApplyKey(VK_SPACE,  _lastMask.Confirm, newMask.Confirm);
 
             _lastMask = newMask;
         }
