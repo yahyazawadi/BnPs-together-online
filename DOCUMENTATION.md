@@ -140,3 +140,17 @@ Using `UndertaleModLib`, the following bytecode transforms were applied to `data
    ```
 3. **Final Executable Output:**
    `Output\BnP_Together_ONLINE_Setup.exe`
+
+---
+
+## 7. Persistent Configuration & Intro Animation Sync
+
+### A. Persistent Configuration (`%AppData%\BnPTogether\config.ini`)
+- **Remembered IP Address:** UI contains a `[x] Remember IP address` checkbox. Entering the Host IP saves `LastHostIp=<ip>` so clients never re-type IP on future launches.
+- **Remembered 16-Digit Network ID:** Entering the 16-digit ZeroTier Network ID saves `LastNetworkId=<id>` and automatically pre-fills the input dialog box for single-click confirmation.
+
+### B. Intro Animation Synchronization Policy
+- **Independent Visuals / Cooperative Skips:**
+  - Neither player's animations are forcibly frozen or locked.
+  - If a player (e.g. Host) presses Confirm (`Z` / `Enter`), the game skips/advances normally.
+  - Battle encounters synchronize the RNG seed dynamically in memory without pausing or freezing the attack animation frame loop.
