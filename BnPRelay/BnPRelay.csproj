@@ -14,4 +14,8 @@
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
+  <ItemGroup>
+    <Resource Include="UI\Assets\Fonts\*.ttf" />
+  </ItemGroup>
+
 </Project>
