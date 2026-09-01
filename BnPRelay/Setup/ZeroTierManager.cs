@@ -13,9 +13,6 @@ namespace BnPRelay.Setup
     /// </summary>
     public static class ZeroTierManager
     {
-        // Public ZeroTier Network for BnP Together ONLINE (Auto-joined with No Authorization required)
-        public const string DefaultPublicNetworkId = "a09acf0207fae019";
-
         private const string ZeroTierMsiUrl = "https://download.zerotier.com/dist/ZeroTier%20One.msi";
         private const string ZeroTierExePath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-one_x64.exe";
         private const string ZeroTierCliPath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-cli.bat";
@@ -95,51 +92,24 @@ namespace BnPRelay.Setup
             }
         }
 
-        /// <summary>Joins a given ZeroTier network ID via CLI.</summary>
+        /// <summary>Joins a given ZeroTier network ID via elevated CLI.</summary>
         public static bool JoinNetwork(string networkId)
         {
             try
             {
-                string[] possibleClis = {
-                    @"C:\Program Files (x86)\ZeroTier\One\zerotier-cli.bat",
-                    @"C:\Program Files\ZeroTier\One\zerotier-cli.bat",
-                    @"C:\ProgramData\ZeroTier\One\zerotier-one_x64.exe"
-                };
-
-                foreach (var cli in possibleClis)
+                // ZeroTier CLI requires administrative permissions or service token access
+                string script = $"Start-Process -FilePath 'C:\\ProgramData\\ZeroTier\\One\\zerotier-one_x64.exe' -ArgumentList '-q join {networkId}' -Verb RunAs -WindowStyle Hidden -Wait";
+                var psi = new ProcessStartInfo("powershell.exe", $"-NoProfile -ExecutionPolicy Bypass -Command \"{script}\"")
                 {
-                    if (File.Exists(cli))
-                    {
-                        string args = cli.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)
-                            ? $"-q join {networkId}"
-                            : $"join {networkId}";
-
-                        var psi = new ProcessStartInfo(cli, args)
-                        {
-                            CreateNoWindow = true,
-                            UseShellExecute = false
-                        };
-                        var p = Process.Start(psi);
-                        p?.WaitForExit(5000);
-                        if (p?.ExitCode == 0) return true;
-                    }
-                }
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                var p = Process.Start(psi);
+                p?.WaitForExit(10000);
+                return p?.ExitCode == 0;
             }
             catch { }
             return false;
-        }
-
-        /// <summary>Automatically joins the built-in public ZeroTier network in background.</summary>
-        public static void AutoJoinDefaultNetwork()
-        {
-            _ = Task.Run(() =>
-            {
-                try
-                {
-                    JoinNetwork(DefaultPublicNetworkId);
-                }
-                catch { }
-            });
         }
 
         /// <summary>Ensures port 7777 and BnPRelay.exe are permitted through Windows Firewall.</summary>
