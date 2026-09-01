@@ -246,25 +246,42 @@ namespace BnPRelay
 
         private void BtnJoinZeroTier_Click(object sender, RoutedEventArgs e)
         {
-            string networkId = Microsoft.VisualBasic.Interaction.InputBox(
-                "* Enter the 16-character ZeroTier Network ID from your host:",
-                "Join ZeroTier Network",
-                "");
+            var res = MessageBox.Show(
+                "* Would you like to open the ZeroTier website (my.zerotier.com) to create or manage your network?\n\n(Click 'Yes' to open website, or 'No' to enter an existing 16-digit Network ID)",
+                "ZeroTier Network Setup",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
 
-            if (!string.IsNullOrWhiteSpace(networkId))
+            if (res == MessageBoxResult.Yes)
             {
-                networkId = networkId.Trim();
-                SetStatus($"* Joining ZeroTier Network {networkId}...");
-                bool ok = BnPRelay.Setup.ZeroTierManager.JoinNetwork(networkId);
-                if (ok)
+                try
                 {
-                    MessageBox.Show("* Joined ZeroTier network successfully!\n\nAsk the host to authorize your device in their ZeroTier dashboard.",
-                        "ZeroTier", MessageBoxButton.OK, MessageBoxImage.Information);
-                    SetStatus("* Joined ZeroTier network! Waiting for authorization...");
+                    Process.Start(new ProcessStartInfo("https://my.zerotier.com/network") { UseShellExecute = true });
                 }
-                else
+                catch { }
+            }
+            else if (res == MessageBoxResult.No)
+            {
+                string networkId = Microsoft.VisualBasic.Interaction.InputBox(
+                    "* Enter the 16-digit ZeroTier Network ID:",
+                    "Join ZeroTier Network",
+                    "");
+
+                if (!string.IsNullOrWhiteSpace(networkId))
                 {
-                    SetStatus("* Failed to join ZeroTier network automatically. Check if ZeroTier is running.");
+                    networkId = networkId.Trim();
+                    SetStatus($"* Joining ZeroTier Network {networkId}...");
+                    bool ok = BnPRelay.Setup.ZeroTierManager.JoinNetwork(networkId);
+                    if (ok)
+                    {
+                        MessageBox.Show("* Joined ZeroTier network!\n\nCheck the box [✓] to authorize this device in your my.zerotier.com dashboard.",
+                            "ZeroTier", MessageBoxButton.OK, MessageBoxImage.Information);
+                        SetStatus("* Joined ZeroTier network! Waiting for authorization...");
+                    }
+                    else
+                    {
+                        SetStatus("* Failed to join ZeroTier network automatically.");
+                    }
                 }
             }
         }
