@@ -34,6 +34,14 @@ namespace BnPRelay
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            // Set Window and Taskbar icon from embedded resource stream
+            try
+            {
+                var iconUri = new Uri("pack://application:,,,/UI/Assets/heart.ico", UriKind.Absolute);
+                Icon = System.Windows.Media.Imaging.BitmapFrame.Create(iconUri);
+            }
+            catch { }
+
             // Install the system-wide keyboard hook
             _keyHook.KeyStateChanged += OnKeyStateChanged;
             _keyHook.Install();
