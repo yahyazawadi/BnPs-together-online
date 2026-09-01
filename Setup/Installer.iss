@@ -27,6 +27,9 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
+SetupMutex=BnPTogetherSetupMutex
+CloseApplications=yes
+RestartApplications=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -56,22 +59,13 @@ Root: HKCU; Subkey: "Software\Classes\bnptogether\shell\open\command"; ValueType
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
 
 [Code]
-// Check prerequisites and system environment
+// Custom friendly Undertale-style error handling
 function InitializeSetup(): Boolean;
 var
-  UndertaleSteamPath: String;
-  DotNetVersion: Cardinal;
+  ErrorCode: Integer;
 begin
   Result := True;
   
-  // Note: BnPRelay is compiled with --self-contained=true,
-  // which means .NET runtime is fully embedded and NEVER required on the user's PC!
-  
-  // Check if Undertale is installed in Steam default location (informational check)
-  UndertaleSteamPath := ExpandConstant('{pf32}\Steam\steamapps\common\Undertale\data.win');
-  if not FileExists(UndertaleSteamPath) then
-  begin
-    // Check custom steam locations
-    UndertaleSteamPath := ExpandConstant('{pf}\Steam\steamapps\common\Undertale\data.win');
-  end;
+  // Close any running instance of BnPRelay automatically before installing
+  ShellExec('open', 'taskkill.exe', '/F /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
