@@ -81,6 +81,9 @@
                                     Style="{StaticResource PixelButton}"
                                     Click="BtnConnect_Click"/>
                         </Grid>
+                        <CheckBox x:Name="ChkRememberIp" Content="[x] Remember IP address"
+                                  Foreground="#A0A0A0" FontFamily="{StaticResource DeterminationFont}"
+                                  FontSize="12" Margin="0,6,0,0" IsChecked="True"/>
                     </StackPanel>
                 </StackPanel>
 

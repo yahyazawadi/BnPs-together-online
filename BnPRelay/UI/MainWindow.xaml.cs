@@ -40,11 +40,17 @@ namespace BnPRelay
             };
         }
 
+        private static readonly string ConfigPath =
+            System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "BnPTogether", "config.ini");
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             // Install the system-wide keyboard hook
             _keyHook.KeyStateChanged += OnKeyStateChanged;
             _keyHook.Install();
+
+            // Load remembered configuration (IP & Network ID)
+            LoadSavedConfig();
 
             // Ensure Windows Firewall permits incoming P2P connections on port 7777
             _ = Task.Run(() => BnPRelay.Setup.ZeroTierManager.EnsureFirewallRules());
@@ -172,6 +178,9 @@ namespace BnPRelay
                 ip = ip.Split(':')[0]; // keep only IP part
 
             TxtHostIp.Text = ip;
+            if (ChkRememberIp.IsChecked == true)
+                SaveConfigKey("LastHostIp", ip);
+
             _isHost = false;
             PanelConnect.Visibility = Visibility.Collapsed;
             SetStatus($"Connecting to {ip}...");
@@ -262,11 +271,13 @@ namespace BnPRelay
                 string networkId = Microsoft.VisualBasic.Interaction.InputBox(
                     "* Enter the 16-digit ZeroTier Network ID:",
                     "Join ZeroTier Network",
-                    "");
+                    _lastNetworkId);
 
                 if (!string.IsNullOrWhiteSpace(networkId))
                 {
                     networkId = networkId.Trim();
+                    _lastNetworkId = networkId;
+                    SaveConfigKey("LastNetworkId", networkId);
                     SetStatus($"* Joining ZeroTier Network {networkId}...");
                     bool ok = BnPRelay.Setup.ZeroTierManager.JoinNetwork(networkId);
                     if (ok)
@@ -281,6 +292,61 @@ namespace BnPRelay
                     }
                 }
             }
+        }
+
+        private string _lastNetworkId = "";
+
+        private void LoadSavedConfig()
+        {
+            try
+            {
+                if (System.IO.File.Exists(ConfigPath))
+                {
+                    var lines = System.IO.File.ReadAllLines(ConfigPath);
+                    foreach (var line in lines)
+                    {
+                        var parts = line.Split('=', 2);
+                        if (parts.Length == 2)
+                        {
+                            string k = parts[0].Trim();
+                            string v = parts[1].Trim();
+                            if (k == "LastHostIp" && !string.IsNullOrEmpty(v))
+                                TxtHostIp.Text = v;
+                            else if (k == "LastNetworkId" && !string.IsNullOrEmpty(v))
+                                _lastNetworkId = v;
+                        }
+                    }
+                }
+            }
+            catch { }
+        }
+
+        private static void SaveConfigKey(string key, string value)
+        {
+            try
+            {
+                string dir = System.IO.Path.GetDirectoryName(ConfigPath)!;
+                if (!System.IO.Directory.Exists(dir))
+                    System.IO.Directory.CreateDirectory(dir);
+
+                var map = new System.Collections.Generic.Dictionary<string, string>();
+                if (System.IO.File.Exists(ConfigPath))
+                {
+                    foreach (var line in System.IO.File.ReadAllLines(ConfigPath))
+                    {
+                        var parts = line.Split('=', 2);
+                        if (parts.Length == 2)
+                            map[parts[0].Trim()] = parts[1].Trim();
+                    }
+                }
+                map[key] = value;
+
+                var outLines = new System.Collections.Generic.List<string>();
+                foreach (var kvp in map)
+                    outLines.Add($"{kvp.Key}={kvp.Value}");
+                System.IO.File.WriteAllLines(ConfigPath, outLines);
+            }
+            catch { }
         }
 
         // ─── BUTTONS ────────────────────────────────────────────────────────────
