@@ -14,7 +14,9 @@ namespace BnPRelay
         private readonly WindowsInputInjector _injector = new();
         private readonly SaveFileMirror _saveMirror = new();
         private readonly LowLevelKeyboardHook _keyHook = new();
-        private InputBitmask _currentMask;   // live bitmask of currently-held keys
+        private readonly MemoryManager _mem = new();
+        private TurnSyncBarrier? _turnSync;
+        private InputBitmask _currentMask;
         private bool _isHost;
 
         public MainWindow()
@@ -92,6 +94,11 @@ namespace BnPRelay
             _host.ClientConnected       += () => Dispatcher.Invoke(OnConnected);
             _host.ClientDisconnected    += () => Dispatcher.Invoke(OnDisconnected);
 
+            // Wire TurnSyncBarrier for host
+            _turnSync = new TurnSyncBarrier(_mem,
+                (seed, idx) => _host.SendTurnSeedAsync(seed, idx),
+                () => Task.CompletedTask /* AttackGo sent internally by HostSession */);
+
             await _host.StartAsync();
         }
 
@@ -130,8 +137,12 @@ namespace BnPRelay
             _client.LatencyUpdated      += ms => Dispatcher.Invoke(() => TxtLatency.Text = $"* Ping: {ms}ms");
             _client.RemoteInputReceived += mask => _injector.InjectDelta(mask);
             _client.SaveFileReceived    += (name, data) => SaveFileMirror.WriteSaveFile(name, data);
-            _client.TurnSeedReceived    += (seed, idx) => { /* Phase 2: write seed to game memory */ };
-            _client.AttackGoReceived    += idx => { /* Phase 2: release battle animation barrier */ };
+            _client.TurnSeedReceived    += (seed, idx) =>
+            {
+                _turnSync ??= new TurnSyncBarrier(_mem, (_, _) => Task.CompletedTask, () => Task.CompletedTask);
+                _turnSync.OnTurnSeedReceived(seed, (byte)idx);
+            };
+            _client.AttackGoReceived    += idx => _turnSync?.OnAttackGoReceived(idx);
             _client.HostConnected       += () => Dispatcher.Invoke(OnConnected);
             _client.HostDisconnected    += () => Dispatcher.Invoke(OnDisconnected);
 
@@ -175,6 +186,16 @@ namespace BnPRelay
             SetStatus("* Game launched! Relaying inputs...");
             BtnLaunch.IsEnabled = false;
 
+            // Attach memory manager after game launches
+            _ = Task.Run(async () =>
+            {
+                await Task.Delay(3000); // give game time to boot
+                if (_mem.Attach())
+                    Dispatcher.Invoke(() => SetStatus("* Relay active — memory attached!"));
+                else
+                    Dispatcher.Invoke(() => SetStatus("* Relay active (memory attach failed — RNG sync limited)"));
+            });
+
             // Launch Undertale via Steam
             try { Process.Start(new ProcessStartInfo("steam://run/1252690") { UseShellExecute = true }); }
             catch { SetStatus("Could not launch Undertale via Steam. Launch it manually."); }
@@ -213,6 +234,8 @@ namespace BnPRelay
             _keyHook.Dispose();
             _injector.Dispose();
             _saveMirror.Dispose();
+            _mem.Dispose();
+            _turnSync?.Dispose();
             _host?.Dispose();
             _client?.Dispose();
             base.OnClosed(e);

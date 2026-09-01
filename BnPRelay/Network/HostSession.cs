@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using BnPRelay.Network;
+using BnPRelay.Sync;
 
 namespace BnPRelay
 {
@@ -22,10 +23,13 @@ namespace BnPRelay
 
         // Events raised on UI thread context
         public event Action<string>? StatusChanged;
-        public event Action<int>?    LatencyUpdated;   // ms
-        public event Action<InputBitmask>? RemoteInputReceived; // P2 input from client
+        public event Action<int>?    LatencyUpdated;
+        public event Action<InputBitmask>? RemoteInputReceived;
         public event Action? ClientConnected;
         public event Action? ClientDisconnected;
+        public event Action? SeedAckReceived_Raw;
+
+        public HeartbeatManager? Heartbeat { get; private set; }
 
         public async Task StartAsync()
         {
@@ -91,14 +95,13 @@ namespace BnPRelay
         private async Task RunSessionAsync(TcpClient client, CancellationToken ct)
         {
             var stream = client.GetStream();
-            var pingTimer = new System.Timers.Timer(1000);
-            var pingSent = DateTime.UtcNow;
-            pingTimer.Elapsed += async (_, _) =>
-            {
-                pingSent = DateTime.UtcNow;
-                await PacketFramer.SendAsync(stream, PacketType.Ping, Array.Empty<byte>(), ct);
-            };
-            pingTimer.Start();
+
+            // Set up heartbeat manager
+            Heartbeat = new HeartbeatManager(
+                async () => await PacketFramer.SendAsync(stream, PacketType.Ping, Array.Empty<byte>(), ct));
+            Heartbeat.Disconnected += () => ClientDisconnected?.Invoke();
+            Heartbeat.Reconnected  += () => ClientConnected?.Invoke();
+            Heartbeat.Start();
 
             try
             {
@@ -113,10 +116,11 @@ namespace BnPRelay
                         case PacketType.SeedAck:
                             // Client confirmed seed — fire AttackGo
                             await SendAttackGoAsync(payload[0]);
+                            SeedAckReceived_Raw?.Invoke();
                             break;
                         case PacketType.Pong:
-                            var ms = (int)(DateTime.UtcNow - pingSent).TotalMilliseconds;
-                            LatencyUpdated?.Invoke(ms);
+                            Heartbeat.OnPongReceived();
+                            LatencyUpdated?.Invoke(Heartbeat.LatencyMs);
                             break;
                     }
                 }
@@ -127,7 +131,7 @@ namespace BnPRelay
             }
             finally
             {
-                pingTimer.Dispose();
+                Heartbeat.Dispose();
             }
         }
 
