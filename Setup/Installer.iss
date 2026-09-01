@@ -1,6 +1,7 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; With Clean In-Place Reset and Process Termination
+; Automatically cleans prior installs, prevents "Folder Exists" warning,
+; and performs a fresh clean overwrite on every installation.
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -19,6 +20,8 @@ AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
 DisableProgramGroupPage=yes
+DisableDirPage=auto
+DirExistsWarning=no
 PrivilegesRequired=lowest
 OutputDir=C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Output
 OutputBaseFilename=BnP_Together_ONLINE_Setup
@@ -144,6 +147,23 @@ begin
     UninstallButton.Left := WizardForm.ClientWidth - WizardForm.CancelButton.Width - ScaleX(155);
     UninstallButton.Top := WizardForm.CancelButton.Top;
     UninstallButton.OnClick := @OnUninstallClick;
+  end;
+end;
+
+// Before copying new files, automatically purge prior install to ensure clean fresh replacement
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  TargetDir: String;
+begin
+  if CurStep = ssInstall then
+  begin
+    StopRunningProcesses();
+    TargetDir := ExpandConstant('{app}');
+    if DirExists(TargetDir) then
+    begin
+      // Clean previous binary files so new build is fresh with no stale files
+      DelTree(TargetDir, False, True, True);
+    end;
   end;
 end;
 
