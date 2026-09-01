@@ -29,7 +29,6 @@ Compression=lzma2/max
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64
-SetupMutex=BnPTogetherSetupMutex
 CloseApplications=force
 RestartApplications=no
 UninstallDisplayIcon={app}\UI\Assets\heart.ico
@@ -72,7 +71,7 @@ var
   InstalledAppDir: String;
   IsUninstallTriggered: Boolean;
 
-// Thorough kill of any process holding the relay file or DLLs
+// Thorough kill of any process holding the relay file, DLLs, or old setup instances
 procedure ForceKillAllProcesses();
 var
   ErrorCode: Integer;
@@ -80,6 +79,19 @@ begin
   Exec('taskkill.exe', '/F /T /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Exec('powershell.exe', '-NoProfile -Command "Get-Process -Name BnPRelay -ErrorAction SilentlyContinue | Stop-Process -Force"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+end;
+
+// Delete the installer executable itself after completion
+procedure DeleteSelfInstaller();
+var
+  CurrentExe: String;
+  ErrorCode: Integer;
+begin
+  CurrentExe := ExpandConstant('{srcexe}');
+  if FileExists(CurrentExe) then
+  begin
+    Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul & del /f /q "' + CurrentExe + '"', '', SW_HIDE, ewNoWait, ErrorCode);
+  end;
 end;
 
 // If any file or old DLL is locked, rename it away so the install folder is completely cleared
@@ -252,4 +264,9 @@ function InitializeUninstall(): Boolean;
 begin
   Result := True;
   ForceKillAllProcesses();
+end;
+
+procedure DeinitializeSetup();
+begin
+  DeleteSelfInstaller();
 end;
