@@ -70,6 +70,7 @@ var
   UninstallButton: TNewButton;
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
+  IsUninstallTriggered: Boolean;
 
 // Thorough kill of any process holding the relay file or DLLs
 procedure ForceKillAllProcesses();
@@ -160,7 +161,17 @@ begin
     RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\bnptogether');
 
     MsgBox('BnP Together ONLINE has been completely removed and reset.', mbInformation, MB_OK);
+    IsUninstallTriggered := True;
     WizardForm.Close;
+  end;
+end;
+
+procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
+begin
+  if IsUninstallTriggered then
+  begin
+    Confirm := False;
+    Cancel := True;
   end;
 end;
 
