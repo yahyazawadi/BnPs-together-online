@@ -18,7 +18,7 @@ if (-not $SkipPublish) {
     Write-Host "=== 2. Publishing .NET 8 Single-File Binary ===" -ForegroundColor Cyan
     Remove-Item -Recurse -Force "$PublishDir\*" -ErrorAction SilentlyContinue
     $env:PATH = "$env:PATH;C:\Program Files\dotnet"
-    dotnet publish "$Root\BnPRelay\BnPRelay.csproj" -c Release -r win-x64 -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true --self-contained true -o "$PublishDir"
+    dotnet publish "$Root\BnPRelay\BnPRelay.csproj" -c Release -p:PublishSingleFile=true --self-contained false -o "$PublishDir"
 }
 
 Write-Host "=== 3. Creating GitHub Release Zip (BnPRelay-Release.zip) ===" -ForegroundColor Cyan
