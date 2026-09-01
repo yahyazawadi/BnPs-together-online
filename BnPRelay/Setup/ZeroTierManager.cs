@@ -13,6 +13,9 @@ namespace BnPRelay.Setup
     /// </summary>
     public static class ZeroTierManager
     {
+        // Public ZeroTier Network for BnP Together ONLINE (Auto-joined with No Authorization required)
+        public const string DefaultPublicNetworkId = "a09acf0207fae019";
+
         private const string ZeroTierMsiUrl = "https://download.zerotier.com/dist/ZeroTier%20One.msi";
         private const string ZeroTierExePath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-one_x64.exe";
         private const string ZeroTierCliPath = @"C:\Program Files (x86)\ZeroTier\One\zerotier-cli.bat";
@@ -124,6 +127,19 @@ namespace BnPRelay.Setup
             }
             catch { }
             return false;
+        }
+
+        /// <summary>Automatically joins the built-in public ZeroTier network in background.</summary>
+        public static void AutoJoinDefaultNetwork()
+        {
+            _ = Task.Run(() =>
+            {
+                try
+                {
+                    JoinNetwork(DefaultPublicNetworkId);
+                }
+                catch { }
+            });
         }
 
         /// <summary>Ensures port 7777 and BnPRelay.exe are permitted through Windows Firewall.</summary>

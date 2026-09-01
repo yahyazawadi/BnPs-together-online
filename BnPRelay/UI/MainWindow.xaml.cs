@@ -49,6 +49,9 @@ namespace BnPRelay
             // Ensure Windows Firewall permits incoming P2P connections on port 7777
             _ = Task.Run(() => BnPRelay.Setup.ZeroTierManager.EnsureFirewallRules());
 
+            // Automatically auto-join the embedded public ZeroTier multiplayer network
+            BnPRelay.Setup.ZeroTierManager.AutoJoinDefaultNetwork();
+
             // Check if ZeroTier is installed for P2P multiplayer
             if (!BnPRelay.Setup.ZeroTierManager.IsInstalled())
             {
