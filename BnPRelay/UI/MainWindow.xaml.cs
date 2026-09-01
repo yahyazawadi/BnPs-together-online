@@ -306,6 +306,21 @@ namespace BnPRelay
                 string apiUrl = "https://api.github.com/repos/yahyazawadi/BnPs-together-online/releases/latest";
                 string json = await http.GetStringAsync(apiUrl);
 
+                // Check version tag
+                var tagMatch = System.Text.RegularExpressions.Regex.Match(json, @"""tag_name"":\s*""([^""]+)""");
+                string latestTag = tagMatch.Success ? tagMatch.Groups[1].Value.Trim().TrimStart('v', 'V') : "";
+                
+                string currentVersion = typeof(MainWindow).Assembly.GetName().Version?.ToString(3) ?? "1.0.0";
+
+                if (!string.IsNullOrEmpty(latestTag) && latestTag == currentVersion)
+                {
+                    SetStatus($"* You are already on the latest version! (v{currentVersion})");
+                    MessageBox.Show($"* You are already running the latest version of BnP Together ONLINE (v{currentVersion}).",
+                        "Up to Date", MessageBoxButton.OK, MessageBoxImage.Information);
+                    BtnCheckUpdate.IsEnabled = true;
+                    return;
+                }
+
                 // Find download URL for BnPRelay-Release.zip or Setup
                 string downloadUrl = "";
                 string pattern = @"""browser_download_url"":\s*""([^""]+BnPRelay-Release\.zip|[^""]+\.zip|[^""]+Setup\.exe)""";
@@ -314,13 +329,11 @@ namespace BnPRelay
                     downloadUrl = match.Groups[1].Value;
                 else
                 {
-                    // Fallback to zipball
-                    var tagMatch = System.Text.RegularExpressions.Regex.Match(json, @"""tag_name"":\s*""([^""]+)""");
                     string tag = tagMatch.Success ? tagMatch.Groups[1].Value : "main";
                     downloadUrl = $"https://github.com/yahyazawadi/BnPs-together-online/archive/refs/tags/{tag}.zip";
                 }
 
-                SetStatus("* Downloading latest update from GitHub...");
+                SetStatus($"* Downloading v{latestTag} update from GitHub...");
                 string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BnPUpdate");
                 System.IO.Directory.CreateDirectory(tempDir);
                 string zipPath = System.IO.Path.Combine(tempDir, "update.zip");
