@@ -51,7 +51,12 @@ namespace BnPRelay.Setup
                 {
                     await proc.WaitForExitAsync();
                     File.Delete(tempMsi);
-                    return proc.ExitCode == 0;
+                    bool ok = proc.ExitCode == 0;
+                    if (ok)
+                    {
+                        LaunchZeroTierUi();
+                    }
+                    return ok;
                 }
             }
             catch (Exception ex)
@@ -59,6 +64,30 @@ namespace BnPRelay.Setup
                 progressCallback?.Invoke($"[!] ZeroTier install error: {ex.Message}");
             }
             return false;
+        }
+
+        /// <summary>Launches the ZeroTier tray / desktop UI.</summary>
+        public static void LaunchZeroTierUi()
+        {
+            string[] uiPaths = {
+                @"C:\Program Files (x86)\ZeroTier\One\zerotier_desktop_ui.exe",
+                @"C:\Program Files\ZeroTier\One\zerotier_desktop_ui.exe",
+                @"C:\Program Files (x86)\ZeroTier\One\ZeroTier One.exe",
+                @"C:\Program Files\ZeroTier\One\ZeroTier One.exe"
+            };
+
+            foreach (var path in uiPaths)
+            {
+                if (File.Exists(path))
+                {
+                    try
+                    {
+                        Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+                        break;
+                    }
+                    catch { }
+                }
+            }
         }
 
         /// <summary>Joins a given ZeroTier network ID via CLI.</summary>
