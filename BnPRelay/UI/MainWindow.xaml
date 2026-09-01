@@ -31,10 +31,10 @@
         <!-- Header with Dual Overlapping Souls (Red P1 + Cyan P2) -->
         <StackPanel Grid.Row="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,0,14">
             <Grid Width="32" Height="22" Margin="0,0,10,0" VerticalAlignment="Center">
-                <!-- Cyan Soul (P2 - slightly back/right) -->
+                <!-- Cyan Soul (P2 - pure #01FAFF) -->
                 <Image Source="/UI/Assets/heart_cyan.png" Width="18" Height="18"
                        HorizontalAlignment="Right" VerticalAlignment="Bottom"
-                       RenderOptions.BitmapScalingMode="NearestNeighbor" Opacity="0.9"/>
+                       RenderOptions.BitmapScalingMode="NearestNeighbor"/>
                 <!-- Red Soul (P1 - front/left) -->
                 <Image Source="/UI/Assets/heart_red.png" Width="18" Height="18"
                        HorizontalAlignment="Left" VerticalAlignment="Top"
