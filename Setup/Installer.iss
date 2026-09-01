@@ -1,7 +1,6 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; Self-contained installer for Undertale: Bits & Pieces Together Online
-; Includes Full Uninstaller & Windows Add/Remove Programs integration
+; With Smart Existing Version Detection & Direct "Uninstall" / "Reinstall"
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -31,7 +30,6 @@ ArchitecturesInstallIn64BitMode=x64
 SetupMutex=BnPTogetherSetupMutex
 CloseApplications=yes
 RestartApplications=no
-; Uninstaller configuration
 UninstallDisplayIcon={app}\UI\Assets\heart.ico
 UninstallDisplayName={#MyAppName}
 CreateUninstallRegKey=yes
@@ -41,37 +39,89 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-Name: "desktopuninstall"; Description: "Create an Uninstall shortcut on Desktop"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Standalone single-file published BnPRelay.exe and all dependencies
+; Standalone published files
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Fonts are copied directly to app directory (WPF loads them via pack URI and registry without AddFontResource lock errors)
+; Fonts
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\BnPRelay\UI\Assets\Fonts\*.ttf"; DestDir: "{app}\UI\Assets\Fonts"; Flags: ignoreversion
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\UI\Assets\heart.ico"
 Name: "{autoprograms}\{#MyAppName}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\UI\Assets\heart.ico"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\UI\Assets\heart.ico"; Tasks: desktopicon
-Name: "{autodesktop}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\UI\Assets\heart.ico"; Tasks: desktopuninstall
 
 [Registry]
-; Register bnptogether:// URL deep-link protocol
 Root: HKCU; Subkey: "Software\Classes\bnptogether"; ValueType: string; ValueName: ""; ValueData: "URL:BnP Together ONLINE Protocol"; Flags: uninsdeletekey
 Root: HKCU; Subkey: "Software\Classes\bnptogether"; ValueType: string; ValueName: "URL Protocol"; ValueData: ""
 Root: HKCU; Subkey: "Software\Classes\bnptogether\DefaultIcon"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"",0"
 Root: HKCU; Subkey: "Software\Classes\bnptogether\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
-; Auto-launch after installation with shellexec to ensure reliable launch
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall shellexec
 
 [UninstallDelete]
-; Clean up app data and temp cache on uninstall for fresh restart
 Type: filesandordirs; Name: "{localappdata}\BnPTogether"
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+var
+  UninstallButton: TNewButton;
+  IsAlreadyInstalled: Boolean;
+  UninstallerPath: String;
+
+// Detect existing installation in registry
+function GetExistingUninstaller(): String;
+var
+  RegKey: String;
+  ResultStr: String;
+begin
+  RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1';
+  if RegQueryStringValue(HKCU, RegKey, 'UninstallString', ResultStr) then
+  begin
+    Result := RemoveQuotes(ResultStr);
+  end
+  else if RegQueryStringValue(HKLM, RegKey, 'UninstallString', ResultStr) then
+  begin
+    Result := RemoveQuotes(ResultStr);
+  end
+  else
+    Result := '';
+end;
+
+procedure OnUninstallClick(Sender: TObject);
+var
+  ErrorCode: Integer;
+begin
+  if (UninstallerPath <> '') and FileExists(UninstallerPath) then
+  begin
+    if MsgBox('Are you sure you want to completely uninstall BnP Together ONLINE and start fresh?', mbConfirmation, MB_YESNO) = IDYES then
+    begin
+      WizardForm.Close;
+      ShellExec('open', UninstallerPath, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
+    end;
+  end;
+end;
+
+procedure InitializeWizard();
+begin
+  UninstallerPath := GetExistingUninstaller();
+  IsAlreadyInstalled := (UninstallerPath <> '') and FileExists(UninstallerPath);
+
+  if IsAlreadyInstalled then
+  begin
+    // Create direct Uninstall Button right next to Cancel button on the wizard
+    UninstallButton := TNewButton.Create(WizardForm);
+    UninstallButton.Parent := WizardForm;
+    UninstallButton.Caption := 'Uninstall / Fresh Reset';
+    UninstallButton.Width := ScaleX(140);
+    UninstallButton.Height := WizardForm.CancelButton.Height;
+    UninstallButton.Left := WizardForm.ClientWidth - WizardForm.CancelButton.Width - ScaleX(150);
+    UninstallButton.Top := WizardForm.CancelButton.Top;
+    UninstallButton.OnClick := @OnUninstallClick;
+  end;
+end;
+
 function InitializeSetup(): Boolean;
 var
   ErrorCode: Integer;
