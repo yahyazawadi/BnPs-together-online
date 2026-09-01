@@ -70,7 +70,8 @@ var
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
   IsUninstallTriggered: Boolean;
-  DeleteInstallerCheckbox: TNewCheckBox;
+  DeleteCheckboxIndex: Integer;
+  HasAddedDeleteCheckbox: Boolean;
   InstallSuccessful: Boolean;
 
 // Thorough kill of any process holding the relay file, DLLs, or old setup instances
@@ -243,18 +244,20 @@ begin
     UninstallButton.Top := WizardForm.CancelButton.Top;
     UninstallButton.OnClick := @OnUninstallClick;
   end;
+  DeleteCheckboxIndex := -1;
+  HasAddedDeleteCheckbox := False;
+end;
 
-  // "Delete installer after installation" checkbox on Finished Page (checked by default)
-  DeleteInstallerCheckbox := TNewCheckBox.Create(WizardForm);
-  DeleteInstallerCheckbox.Parent := WizardForm.FinishedPage;
-  DeleteInstallerCheckbox.Caption := 'Delete installer after installation';
-  DeleteInstallerCheckbox.Checked := True;
-  DeleteInstallerCheckbox.Left := WizardForm.RunList.Left;
-  DeleteInstallerCheckbox.Width := WizardForm.RunList.Width;
-  DeleteInstallerCheckbox.Height := ScaleY(24);
-  WizardForm.RunList.Height := WizardForm.RunList.Height - ScaleY(30);
-  DeleteInstallerCheckbox.Top := WizardForm.RunList.Top + WizardForm.RunList.Height + ScaleY(8);
-  DeleteInstallerCheckbox.TabOrder := WizardForm.RunList.TabOrder + 1;
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if CurPageID = wpFinished then
+  begin
+    if not HasAddedDeleteCheckbox and (WizardForm.RunList <> nil) then
+    begin
+      DeleteCheckboxIndex := WizardForm.RunList.AddCheckBox('Delete installer after installation', '', 0, True, True, False, False, nil);
+      HasAddedDeleteCheckbox := True;
+    end;
+  end;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -287,8 +290,11 @@ end;
 
 procedure DeinitializeSetup();
 begin
-  if InstallSuccessful and (DeleteInstallerCheckbox <> nil) and DeleteInstallerCheckbox.Checked then
+  if InstallSuccessful and HasAddedDeleteCheckbox and (WizardForm.RunList <> nil) and (DeleteCheckboxIndex >= 0) and (DeleteCheckboxIndex < WizardForm.RunList.Items.Count) then
   begin
-    DeleteSelfInstaller();
+    if WizardForm.RunList.Checked[DeleteCheckboxIndex] then
+    begin
+      DeleteSelfInstaller();
+    end;
   end;
 end;
