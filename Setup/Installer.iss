@@ -61,8 +61,8 @@ Root: HKCU; Subkey: "Software\Classes\bnptogether\DefaultIcon"; ValueType: strin
 Root: HKCU; Subkey: "Software\Classes\bnptogether\shell\open\command"; ValueType: string; ValueName: ""; ValueData: """{app}\{#MyAppExeName}"" ""%1"""
 
 [Run]
-; Auto-launch after installation
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent
+; Auto-launch after installation with shellexec to ensure reliable launch
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall shellexec
 
 [UninstallDelete]
 ; Clean up app data and temp cache on uninstall for fresh restart
