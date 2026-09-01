@@ -39,19 +39,24 @@ namespace BnPRelay.Sync
 
         private void OnFileChanged(object sender, FileSystemEventArgs e)
         {
-            if (!WatchedFiles.Contains(Path.GetFileName(e.Name), StringComparer.OrdinalIgnoreCase))
+            string fileName = Path.GetFileName(e.Name);
+            if (!WatchedFiles.Contains(fileName, StringComparer.OrdinalIgnoreCase))
                 return;
 
-            // Small delay to let the game finish writing
-            System.Threading.Thread.Sleep(100);
-
-            try
+            _ = Task.Run(async () =>
             {
-                byte[] data = File.ReadAllBytes(e.FullPath);
-                CreateBackup(e.Name!, data);
-                SaveChanged?.Invoke(e.Name!, data);
-            }
-            catch { /* Game may still have file locked — we'll catch the next write */ }
+                await Task.Delay(100);
+                try
+                {
+                    if (File.Exists(e.FullPath))
+                    {
+                        byte[] data = File.ReadAllBytes(e.FullPath);
+                        CreateBackup(fileName, data);
+                        SaveChanged?.Invoke(fileName, data);
+                    }
+                }
+                catch { /* Game may still have file locked — we'll catch the next write */ }
+            });
         }
 
         private void CreateBackup(string fileName, byte[] data)
