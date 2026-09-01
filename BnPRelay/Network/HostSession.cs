@@ -1,0 +1,148 @@
+using System;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
+using System.Threading.Tasks;
+using BnPRelay.Network;
+
+namespace BnPRelay
+{
+    /// <summary>
+    /// Host mode: listens for one client connection on TCP port 7777.
+    /// Coordinates the session handshake: sends save file + seed, then begins
+    /// bidirectional input relay once both sides confirm READY.
+    /// </summary>
+    public class HostSession : IDisposable
+    {
+        private const int Port = 7777;
+
+        private TcpListener? _listener;
+        private TcpClient?   _client;
+        private CancellationTokenSource _cts = new();
+
+        // Events raised on UI thread context
+        public event Action<string>? StatusChanged;
+        public event Action<int>?    LatencyUpdated;   // ms
+        public event Action<InputBitmask>? RemoteInputReceived; // P2 input from client
+        public event Action? ClientConnected;
+        public event Action? ClientDisconnected;
+
+        public async Task StartAsync()
+        {
+            _listener = new TcpListener(IPAddress.Any, Port);
+            _listener.Start();
+            StatusChanged?.Invoke("Listening on port 7777...");
+
+            _client = await _listener.AcceptTcpClientAsync(_cts.Token);
+            _listener.Stop();
+
+            ConfigureSocket(_client);
+            StatusChanged?.Invoke("Client connected — performing handshake...");
+            ClientConnected?.Invoke();
+
+            await RunSessionAsync(_client, _cts.Token);
+        }
+
+        public async Task SendInputAsync(InputBitmask mask)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            await PacketFramer.SendAsync(stream, PacketType.Input, new[] { mask.Value }, _cts.Token);
+        }
+
+        public async Task SendTurnSeedAsync(int seed, byte turnIndex)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            var payload = new byte[5];
+            BitConverter.GetBytes(seed).CopyTo(payload, 0);
+            payload[4] = turnIndex;
+            await PacketFramer.SendAsync(stream, PacketType.TurnSeed, payload, _cts.Token);
+        }
+
+        public async Task SendAttackGoAsync(byte turnIndex)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            await PacketFramer.SendAsync(stream, PacketType.AttackGo, new[] { turnIndex }, _cts.Token);
+        }
+
+        public async Task SendSaveFileAsync(string fileName, byte[] data)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            var nameBytes = System.Text.Encoding.UTF8.GetBytes(fileName);
+            var payload = new byte[1 + nameBytes.Length + 4 + data.Length];
+            payload[0] = (byte)nameBytes.Length;
+            nameBytes.CopyTo(payload, 1);
+            BitConverter.GetBytes(data.Length).CopyTo(payload, 1 + nameBytes.Length);
+            data.CopyTo(payload, 1 + nameBytes.Length + 4);
+            await PacketFramer.SendAsync(stream, PacketType.SaveUpdate, payload, _cts.Token);
+        }
+
+        public async Task SendPauseAsync(bool paused)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            await PacketFramer.SendAsync(stream, paused ? PacketType.PauseGame : PacketType.ResumeGame,
+                Array.Empty<byte>(), _cts.Token);
+        }
+
+        private async Task RunSessionAsync(TcpClient client, CancellationToken ct)
+        {
+            var stream = client.GetStream();
+            var pingTimer = new System.Timers.Timer(1000);
+            var pingSent = DateTime.UtcNow;
+            pingTimer.Elapsed += async (_, _) =>
+            {
+                pingSent = DateTime.UtcNow;
+                await PacketFramer.SendAsync(stream, PacketType.Ping, Array.Empty<byte>(), ct);
+            };
+            pingTimer.Start();
+
+            try
+            {
+                while (!ct.IsCancellationRequested)
+                {
+                    var (type, payload) = await PacketFramer.ReceiveAsync(stream, ct);
+                    switch (type)
+                    {
+                        case PacketType.Input:
+                            RemoteInputReceived?.Invoke(InputBitmask.From(payload[0]));
+                            break;
+                        case PacketType.SeedAck:
+                            // Client confirmed seed — fire AttackGo
+                            await SendAttackGoAsync(payload[0]);
+                            break;
+                        case PacketType.Pong:
+                            var ms = (int)(DateTime.UtcNow - pingSent).TotalMilliseconds;
+                            LatencyUpdated?.Invoke(ms);
+                            break;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                ClientDisconnected?.Invoke();
+            }
+            finally
+            {
+                pingTimer.Dispose();
+            }
+        }
+
+        private static void ConfigureSocket(TcpClient client)
+        {
+            client.NoDelay = true;           // Disable Nagle — inputs need immediate delivery
+            client.ReceiveTimeout = 5000;
+            client.SendTimeout = 2000;
+        }
+
+        public void Dispose()
+        {
+            _cts.Cancel();
+            _client?.Dispose();
+            _listener?.Stop();
+        }
+    }
+}

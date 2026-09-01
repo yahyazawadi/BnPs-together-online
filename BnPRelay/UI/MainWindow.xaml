@@ -1,0 +1,130 @@
+<Window x:Class="BnPRelay.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="BnP Together ONLINE"
+        Width="440" Height="320"
+        MinWidth="440" MinHeight="320"
+        ResizeMode="CanMinimize"
+        Background="#000000"
+        WindowStartupLocation="CenterScreen"
+        Loaded="Window_Loaded">
+
+    <Window.Resources>
+        <!-- Soul cursor animation: pulsing red heart -->
+        <Storyboard x:Key="HeartPulse" RepeatBehavior="Forever">
+            <DoubleAnimation Storyboard.TargetName="SoulHeart"
+                             Storyboard.TargetProperty="Opacity"
+                             From="1.0" To="0.3" Duration="0:0:0.6"
+                             AutoReverse="True"/>
+        </Storyboard>
+    </Window.Resources>
+
+    <Grid Margin="16">
+        <!-- TITLE -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,14">
+            <TextBlock x:Name="SoulHeart" Text="♥ " FontSize="18"
+                       Foreground="#FF3040"
+                       FontFamily="{StaticResource DeterminationFont}"/>
+            <TextBlock Text="BnP Together ONLINE"
+                       Style="{StaticResource PixelTextLarge}"/>
+        </StackPanel>
+
+        <!-- Main content panel: swapped between Connect, Hosting, Connected -->
+        <Border Grid.Row="1" Style="{StaticResource PixelBorder}">
+            <Grid>
+                <!-- === CONNECT SCREEN (default) === -->
+                <StackPanel x:Name="PanelConnect" Visibility="Visible">
+                    <TextBlock Text="* Choose your role:"
+                               Style="{StaticResource PixelText}" Margin="0,0,0,12"/>
+
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition/><ColumnDefinition Width="10"/><ColumnDefinition/>
+                        </Grid.ColumnDefinitions>
+                        <Button Grid.Column="0" x:Name="BtnHost" Content="HOST GAME"
+                                Style="{StaticResource PixelButton}"
+                                Click="BtnHost_Click"/>
+                        <Button Grid.Column="2" x:Name="BtnJoin" Content="JOIN GAME"
+                                Style="{StaticResource PixelButton}"
+                                Click="BtnJoin_Click"/>
+                    </Grid>
+
+                    <!-- Join IP input (hidden until JOIN clicked) -->
+                    <StackPanel x:Name="PanelJoinInput" Visibility="Collapsed" Margin="0,6,0,0">
+                        <TextBlock Text="* Enter host IP:" Style="{StaticResource PixelText}" Margin="0,0,0,4"/>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition/><ColumnDefinition Width="8"/><ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <Grid Grid.Column="0">
+                                <TextBox x:Name="TxtHostIp"
+                                         Style="{StaticResource PixelTextBox}"
+                                         TextChanged="TxtHostIp_TextChanged"/>
+                                <TextBlock x:Name="TxtIpPlaceholder"
+                                           Text="10.147.17.x" IsHitTestVisible="False"
+                                           Foreground="#585858" Margin="8,4,0,0"
+                                           FontFamily="{StaticResource DeterminationFont}"
+                                           FontSize="13" VerticalAlignment="Center"/>
+                            </Grid>
+                            <Button Grid.Column="2" Content="CONNECT"
+                                    Style="{StaticResource PixelButton}"
+                                    Click="BtnConnect_Click"/>
+                        </Grid>
+                    </StackPanel>
+                </StackPanel>
+
+                <!-- === HOSTING SCREEN === -->
+                <StackPanel x:Name="PanelHosting" Visibility="Collapsed">
+                    <TextBlock Text="* Waiting for friend to connect..."
+                               Style="{StaticResource PixelText}" Margin="0,0,0,10"/>
+                    <TextBlock x:Name="TxtHostIpDisplay"
+                               Style="{StaticResource PixelText}"
+                               Foreground="#FFEB00"/>
+                    <Button Content="COPY INVITE LINK" Style="{StaticResource PixelButton}"
+                            Margin="0,10,0,0" Click="BtnCopyLink_Click"/>
+                </StackPanel>
+
+                <!-- === CONNECTED SCREEN === -->
+                <StackPanel x:Name="PanelConnected" Visibility="Collapsed">
+                    <TextBlock Text="* Connected!" Style="{StaticResource PixelText}"
+                               Foreground="#00FF60" Margin="0,0,0,6"/>
+                    <TextBlock x:Name="TxtLatency" Style="{StaticResource PixelTextSmall}"
+                               Margin="0,0,0,10"/>
+                    <Button x:Name="BtnLaunch" Content="♥  LAUNCH GAME"
+                            Style="{StaticResource PixelButton}"
+                            Margin="0,0,0,8" Click="BtnLaunch_Click"/>
+                    <Button Content="RESTORE SAVE..." Style="{StaticResource PixelButton}"
+                            Click="BtnRestore_Click"/>
+                </StackPanel>
+
+                <!-- === DISCONNECT OVERLAY === -->
+                <Border x:Name="OverlayDisconnect" Visibility="Collapsed"
+                        Background="#CC000000" CornerRadius="2">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <TextBlock Text="* CONNECTION LOST"
+                                   Style="{StaticResource PixelText}"
+                                   Foreground="#FF3040" HorizontalAlignment="Center"/>
+                        <TextBlock Text="* GAME FROZEN FOR SAFETY"
+                                   Style="{StaticResource PixelText}"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="TxtReconnecting"
+                                   Style="{StaticResource PixelTextSmall}"
+                                   HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Status bar -->
+        <TextBlock Grid.Row="2" x:Name="TxtStatus"
+                   Style="{StaticResource PixelTextSmall}"
+                   Margin="0,8,0,0" TextWrapping="Wrap"/>
+    </Grid>
+</Window>

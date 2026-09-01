@@ -1,0 +1,98 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- ========================================================
+         BnP Together ONLINE — Undertale Pixel Art Theme
+         Font: Determination Mono (bundled)
+         Palette: pure black/white + Undertale red soul accent
+    ========================================================= -->
+
+    <!-- Fonts: Determination Mono (Undertale menu font) -->
+    <FontFamily x:Key="DeterminationFont">pack://application:,,,/UI/Assets/Fonts/#Determination Mono</FontFamily>
+
+    <!-- Color Palette -->
+    <SolidColorBrush x:Key="BgBlack"       Color="#000000"/>
+    <SolidColorBrush x:Key="FgWhite"       Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="SoulRed"       Color="#FF3040"/>
+    <SolidColorBrush x:Key="SoulYellow"    Color="#FFEB00"/>
+    <SolidColorBrush x:Key="SoulGreen"     Color="#00FF60"/>
+    <SolidColorBrush x:Key="AccentGray"    Color="#585858"/>
+    <SolidColorBrush x:Key="BorderWhite"   Color="#FFFFFF"/>
+    <SolidColorBrush x:Key="OverlayBlack"  Color="#CC000000"/>
+
+    <!-- Base text style using Determination Mono -->
+    <Style x:Key="PixelText" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="{StaticResource DeterminationFont}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{StaticResource FgWhite}"/>
+        <Setter Property="TextOptions.TextFormattingMode" Value="Display"/>
+        <Setter Property="RenderOptions.BitmapScalingMode" Value="NearestNeighbor"/>
+    </Style>
+
+    <Style x:Key="PixelTextLarge" TargetType="TextBlock" BasedOn="{StaticResource PixelText}">
+        <Setter Property="FontSize" Value="20"/>
+    </Style>
+
+    <Style x:Key="PixelTextSmall" TargetType="TextBlock" BasedOn="{StaticResource PixelText}">
+        <Setter Property="FontSize" Value="11"/>
+        <Setter Property="Foreground" Value="{StaticResource AccentGray}"/>
+    </Style>
+
+    <!-- Pixel border style — the classic Undertale white double-box -->
+    <Style x:Key="PixelBorder" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource BgBlack}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderWhite}"/>
+        <Setter Property="BorderThickness" Value="3"/>
+        <Setter Property="Padding" Value="12"/>
+        <Setter Property="SnapsToDevicePixels" Value="True"/>
+    </Style>
+
+    <!-- Button: Undertale-style menu option (white text, black bg, highlights on hover) -->
+    <Style x:Key="PixelButton" TargetType="Button">
+        <Setter Property="FontFamily" Value="{StaticResource DeterminationFont}"/>
+        <Setter Property="FontSize" Value="14"/>
+        <Setter Property="Foreground" Value="{StaticResource FgWhite}"/>
+        <Setter Property="Background" Value="{StaticResource BgBlack}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderWhite}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="Padding" Value="12,6"/>
+        <Setter Property="Cursor" Value="Hand"/>
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="Button">
+                    <Border x:Name="Bd"
+                            Background="{TemplateBinding Background}"
+                            BorderBrush="{TemplateBinding BorderBrush}"
+                            BorderThickness="{TemplateBinding BorderThickness}"
+                            Padding="{TemplateBinding Padding}"
+                            SnapsToDevicePixels="True">
+                        <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource FgWhite}"/>
+                            <Setter Property="Foreground" Value="{StaticResource BgBlack}"/>
+                        </Trigger>
+                        <Trigger Property="IsPressed" Value="True">
+                            <Setter TargetName="Bd" Property="Background" Value="{StaticResource SoulRed}"/>
+                            <Setter Property="Foreground" Value="{StaticResource FgWhite}"/>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- TextBox: Undertale-style input field -->
+    <Style x:Key="PixelTextBox" TargetType="TextBox">
+        <Setter Property="FontFamily" Value="{StaticResource DeterminationFont}"/>
+        <Setter Property="FontSize" Value="13"/>
+        <Setter Property="Foreground" Value="{StaticResource FgWhite}"/>
+        <Setter Property="Background" Value="{StaticResource BgBlack}"/>
+        <Setter Property="BorderBrush" Value="{StaticResource BorderWhite}"/>
+        <Setter Property="BorderThickness" Value="2"/>
+        <Setter Property="Padding" Value="6,4"/>
+        <Setter Property="CaretBrush" Value="{StaticResource FgWhite}"/>
+    </Style>
+
+</ResourceDictionary>
