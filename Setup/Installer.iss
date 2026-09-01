@@ -116,31 +116,41 @@ begin
   end;
 end;
 
-// Searches Downloads folder and current folder for older setup duplicates and removes them
-procedure CleanLegacyInstallerFiles();
+// Searches Downloads folder, Telegram Desktop folder, and Desktop for older setup duplicates and removes them
+procedure CleanFolderOfOldSetups(Folder: String; CurrentExeName: String);
 var
   FindRec: TFindRec;
-  DownloadsDir: String;
-  CurrentExeName: String;
 begin
-  DownloadsDir := ExpandConstant('{userdocs}\..\Downloads');
-  CurrentExeName := ExtractFileName(ExpandConstant('{srcexe}'));
-
-  if DirExists(DownloadsDir) then
+  if (Folder <> '') and DirExists(Folder) then
   begin
-    if FindFirst(DownloadsDir + '\*BnP*Together*ONLINE*Setup*.exe', FindRec) then
+    if FindFirst(Folder + '\*BnP*Together*ONLINE*Setup*.exe', FindRec) then
     begin
       try
         repeat
-          // Delete older duplicate downloads (skip the currently running file)
           if (FindRec.Name <> CurrentExeName) then
-            DeleteFile(DownloadsDir + '\' + FindRec.Name);
+            DeleteFile(Folder + '\' + FindRec.Name);
         until not FindNext(FindRec);
       finally
         FindClose(FindRec);
       end;
     end;
   end;
+end;
+
+procedure CleanLegacyInstallerFiles();
+var
+  CurrentExeName: String;
+begin
+  CurrentExeName := ExtractFileName(ExpandConstant('{srcexe}'));
+
+  // 1. Standard Downloads folder
+  CleanFolderOfOldSetups(ExpandConstant('{userdocs}\..\Downloads'), CurrentExeName);
+  // 2. Telegram Desktop downloads folder
+  CleanFolderOfOldSetups(ExpandConstant('{userdocs}\..\Downloads\Telegram Desktop'), CurrentExeName);
+  // 3. Desktop folder
+  CleanFolderOfOldSetups(ExpandConstant('{autodesktop}'), CurrentExeName);
+  // 4. Current installer directory
+  CleanFolderOfOldSetups(ExtractFileDir(ExpandConstant('{srcexe}')), CurrentExeName);
 end;
 
 // Detect existing installation directory from registry
