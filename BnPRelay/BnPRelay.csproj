@@ -8,10 +8,12 @@
     <RootNamespace>BnPRelay</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <!-- Single self-contained exe, no .NET install required on user machine -->
+    <!-- True Single-File bundle with all native WPF runtime DLLs inside -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
     <ApplicationIcon>UI\Assets\heart.ico</ApplicationIcon>
   </PropertyGroup>
 

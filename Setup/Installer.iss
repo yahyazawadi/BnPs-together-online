@@ -1,7 +1,6 @@
 ; =====================================================================
 ; BnP Together ONLINE — Inno Setup Script
-; Self-contained installer with automated file unlock, rename fallback,
-; and process killing in pure Pascal script.
+; True Single-Executable Installer with Full Auto-Cleanup
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
@@ -44,7 +43,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; Notice: ignoreversion + restartreplace ensures locked files are cleanly renamed/replaced
+; Standalone single-file bundle (DLLs are embedded directly inside the exe)
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
 ; Fonts
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\BnPRelay\UI\Assets\Fonts\*.ttf"; DestDir: "{app}\UI\Assets\Fonts"; Flags: ignoreversion
@@ -72,7 +71,7 @@ var
   IsAlreadyInstalled: Boolean;
   InstalledAppDir: String;
 
-// Thorough kill of any process holding the relay file
+// Thorough kill of any process holding the relay file or DLLs
 procedure ForceKillAllProcesses();
 var
   ErrorCode: Integer;
@@ -82,18 +81,36 @@ begin
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
 
-// If a file is stubbornly locked by Windows Explorer or another tool, rename it away so the new one can write freely
-procedure UnlockAndClearFile(FilePath: String);
+// If any file or old DLL is locked, rename it away so the install folder is completely cleared
+procedure SafePurgeDirectory(TargetDir: String);
 var
+  FindRec: TFindRec;
+  FilePath: String;
   OldPath: String;
 begin
-  if FileExists(FilePath) then
+  if DirExists(TargetDir) then
   begin
-    if not DeleteFile(FilePath) then
+    if FindFirst(TargetDir + '\*.*', FindRec) then
     begin
-      OldPath := FilePath + '.old_' + GetDateTimeString('yyyymmddhhnnss', #0, #0);
-      RenameFile(FilePath, OldPath);
-      DeleteFile(OldPath);
+      try
+        repeat
+          if (FindRec.Name <> '.') and (FindRec.Name <> '..') then
+          begin
+            FilePath := TargetDir + '\' + FindRec.Name;
+            if not (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY <> 0) then
+            begin
+              if not DeleteFile(FilePath) then
+              begin
+                OldPath := FilePath + '.old_' + GetDateTimeString('yyyymmddhhnnss', #0, #0);
+                RenameFile(FilePath, OldPath);
+                DeleteFile(OldPath);
+              end;
+            end;
+          end;
+        until not FindNext(FindRec);
+      finally
+        FindClose(FindRec);
+      end;
     end;
   end;
 end;
@@ -124,7 +141,7 @@ begin
 
     if (InstalledAppDir <> '') and DirExists(InstalledAppDir) then
     begin
-      UnlockAndClearFile(InstalledAppDir + '\BnPRelay.exe');
+      SafePurgeDirectory(InstalledAppDir);
       DelTree(InstalledAppDir, True, True, True);
     end;
 
@@ -171,7 +188,7 @@ var
 begin
   ForceKillAllProcesses();
   TargetAppDir := ExpandConstant('{app}');
-  UnlockAndClearFile(TargetAppDir + '\BnPRelay.exe');
+  SafePurgeDirectory(TargetAppDir);
   Result := '';
 end;
 
