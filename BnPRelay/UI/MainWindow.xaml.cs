@@ -174,7 +174,12 @@ namespace BnPRelay
             };
             _client.AttackGoReceived    += idx => _turnSync?.OnAttackGoReceived(idx);
             _client.HostConnected       += () => Dispatcher.Invoke(OnConnected);
-            _client.HostDisconnected    += () => Dispatcher.Invoke(OnDisconnected);
+            _client.HostDisconnected    += () => Dispatcher.Invoke(() => OnDisconnected($"Connecting to {ip} failed"));
+            _client.ConnectionFailed    += reason => Dispatcher.Invoke(() =>
+            {
+                TxtDisconnectTarget.Text = $"* Target IP: {ip}:7777";
+                TxtDisconnectReason.Text = $"* Reason: {reason}";
+            });
 
             _ = _client.ConnectAsync();
         }
@@ -201,11 +206,25 @@ namespace BnPRelay
             SetStatus("* Both players connected. Click LAUNCH GAME when ready!");
         }
 
-        private void OnDisconnected()
+        private void OnDisconnected(string? reason = null)
         {
             OverlayDisconnect.Visibility = Visibility.Visible;
             _injector.Disable();
+            if (!string.IsNullOrEmpty(reason))
+                TxtDisconnectReason.Text = $"* {reason}";
             TxtReconnecting.Text = "* Attempting to reconnect...";
+        }
+
+        private void BtnCancelReconnect_Click(object sender, RoutedEventArgs e)
+        {
+            _client?.Dispose();
+            _client = null;
+            OverlayDisconnect.Visibility = Visibility.Collapsed;
+            PanelConnected.Visibility = Visibility.Collapsed;
+            PanelHosting.Visibility = Visibility.Collapsed;
+            PanelConnect.Visibility = Visibility.Visible;
+            PanelJoinInput.Visibility = Visibility.Visible;
+            SetStatus("Connection cancelled. Enter host IP and try again.");
         }
 
         // ─── BUTTONS ────────────────────────────────────────────────────────────

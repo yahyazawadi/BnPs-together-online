@@ -105,17 +105,31 @@
 
                 <!-- === DISCONNECT OVERLAY === -->
                 <Border x:Name="OverlayDisconnect" Visibility="Collapsed"
-                        Background="#CC000000" CornerRadius="2">
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="* CONNECTION LOST"
+                        Background="#E6000000" CornerRadius="2">
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Margin="10">
+                        <TextBlock Text="* CONNECTION FAILED"
                                    Style="{StaticResource PixelText}"
                                    Foreground="#FF3040" HorizontalAlignment="Center"/>
                         <TextBlock Text="* GAME FROZEN FOR SAFETY"
                                    Style="{StaticResource PixelText}"
                                    HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                        <TextBlock x:Name="TxtDisconnectTarget"
+                                   Style="{StaticResource PixelTextSmall}"
+                                   Foreground="#FFDE00"
+                                   HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <TextBlock x:Name="TxtDisconnectReason"
+                                   Style="{StaticResource PixelTextSmall}"
+                                   Foreground="#FF8080"
+                                   TextWrapping="Wrap"
+                                   HorizontalAlignment="Center" Margin="0,4,0,0"/>
                         <TextBlock x:Name="TxtReconnecting"
                                    Style="{StaticResource PixelTextSmall}"
-                                   HorizontalAlignment="Center" Margin="0,8,0,0"/>
+                                   Foreground="#A0A0A0"
+                                   HorizontalAlignment="Center" Margin="0,6,0,0"/>
+                        <Button x:Name="BtnCancelReconnect" Content="CANCEL / RETURN"
+                                Style="{StaticResource PixelButton}"
+                                Margin="0,8,0,0" HorizontalAlignment="Center"
+                                Click="BtnCancelReconnect_Click"/>
                     </StackPanel>
                 </Border>
             </Grid>

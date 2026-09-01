@@ -29,6 +29,7 @@ namespace BnPRelay
         public event Action? ResumeReceived;
         public event Action? HostConnected;
         public event Action? HostDisconnected;
+        public event Action<string>? ConnectionFailed;
 
         public ClientSession(string hostIp) => _hostIp = hostIp;
 
@@ -54,9 +55,22 @@ namespace BnPRelay
                 catch (OperationCanceledException) { break; }
                 catch (Exception ex)
                 {
-                    Logger.Log($"[Client] Connection error to {_hostIp}: {ex.Message}");
+                    string reason = ex.Message;
+                    if (ex is System.Net.Sockets.SocketException sockEx)
+                    {
+                        reason = sockEx.SocketErrorCode switch
+                        {
+                            System.Net.Sockets.SocketError.ConnectionRefused => "Connection Refused (Host app is not running or port 7777 blocked)",
+                            System.Net.Sockets.SocketError.TimedOut => "Connection Timed Out (IP unreachable or firewall blocking)",
+                            System.Net.Sockets.SocketError.HostUnreachable => "Host Unreachable (Check ZeroTier / network connection)",
+                            _ => sockEx.Message
+                        };
+                    }
+
+                    Logger.Log($"[Client] Connection error to {_hostIp}: {reason}");
                     HostDisconnected?.Invoke();
-                    StatusChanged?.Invoke($"Disconnected. Retrying in {delay / 1000.0:F1}s...");
+                    ConnectionFailed?.Invoke(reason);
+                    StatusChanged?.Invoke($"Disconnected ({reason}). Retrying in {delay / 1000.0:F1}s...");
                     await Task.Delay(delay, _cts.Token);
                     delay = Math.Min(delay * 2, MaxReconnectDelayMs);
                 }
