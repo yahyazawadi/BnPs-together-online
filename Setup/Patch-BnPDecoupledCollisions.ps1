@@ -41,12 +41,25 @@ $fs.Close()
 
 Write-Host "Configuring Game for Role: $Role..." -ForegroundColor Cyan
 
-# ─── 1. AUTO-ASSIGN PLAYER ROLE & BYPASS SELECTION SCREEN ─────────────────────
+# ─── 1. AUTO-ASSIGN PLAYER ROLE & BYPASS ALL SELECTION PROMPTS ────────────────
 $cTime = $data.Code | Where-Object { $_.Name.Content -eq 'gml_Object_obj_time_Create_0' }
 if ($cTime -and $cTime.Instructions.Count -gt 9) {
     $playerIdx = if ($Role -eq "Host") { [short]1 } else { [short]2 }
     $cTime.Instructions[8].ValueShort = $playerIdx
-    Write-Host "Auto-configured global.playerindexor = $playerIdx (Selection screen bypassed)." -ForegroundColor Green
+    Write-Host "Auto-configured global.playerindexor = $playerIdx (Device pairing bypassed)." -ForegroundColor Green
+}
+
+# Bypass 'which player should interact with enter instead of z' prompt (Room 384)
+$cStep1 = $data.Code | Where-Object { $_.Name.Content -eq 'gml_Object_obj_time_Step_1' }
+if ($cStep1 -and $cStep1.Instructions.Count -gt 1826) {
+    $cStep1.Instructions[1825].ValueShort = [short]9999
+    Write-Host "Bypassed 'which player should interact with enter' prompt in obj_time_Step_1." -ForegroundColor Green
+}
+
+$cGameStart = $data.Code | Where-Object { $_.Name.Content -eq 'gml_Script_SCR_GAMESTART' }
+if ($cGameStart -and $cGameStart.Instructions.Count -gt 86) {
+    $cGameStart.Instructions[85].ValueShort = [short]1
+    Write-Host "Forced global.askedswap = 1 in SCR_GAMESTART." -ForegroundColor Green
 }
 
 # ─── 2. DECOUPLE HEART HITBOXES ──────────────────────────────────────────────
