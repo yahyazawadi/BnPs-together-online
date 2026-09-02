@@ -51,6 +51,27 @@ namespace BnPRelay.Setup
             }
         }
 
+        public static void KillGameProcesses()
+        {
+            try
+            {
+                foreach (var name in new[] { "UNDERTALE", "UNDERTALEBNP" })
+                {
+                    foreach (var proc in System.Diagnostics.Process.GetProcessesByName(name))
+                    {
+                        try
+                        {
+                            proc.Kill();
+                            proc.WaitForExit(1500);
+                            Logger.Log($"[GameSync] Terminated lingering {name} (PID: {proc.Id}).");
+                        }
+                        catch { }
+                    }
+                }
+            }
+            catch { }
+        }
+
         /// <summary>
         /// Checks if both UNDERTALE.exe and data.win match the verified Bits & Pieces hashes.
         /// If already valid, finishes instantly without downloading.
@@ -120,6 +141,9 @@ namespace BnPRelay.Setup
                     if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
                     ZipFile.ExtractToDirectory(zipPath, extractDir);
 
+                    KillGameProcesses();
+                    await Task.Delay(300);
+
                     // Copy all extracted files (UNDERTALE.exe, data.win, DLLs) directly into gameDir
                     foreach (var file in Directory.GetFiles(extractDir))
                     {
@@ -133,13 +157,25 @@ namespace BnPRelay.Setup
                             try { File.Copy(destPath, backupPath, false); } catch { }
                         }
 
-                        File.Copy(file, destPath, overwrite: true);
-                        Logger.Log($"[GameSync] Deployed -> {fileName}");
+                        try
+                        {
+                            File.Copy(file, destPath, overwrite: true);
+                            Logger.Log($"[GameSync] Deployed -> {fileName}");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log($"[GameSync] Warning copying {fileName}: {ex.Message}");
+                        }
                     }
 
-                    Logger.Log($"[GameSync] Complete game synchronization finished successfully!");
-                    onProgress($"* Game fully synchronized and ready!");
-                    return true;
+                    // Double-check critical files
+                    bool verified = File.Exists(exePath) && File.Exists(dataPath);
+                    if (verified)
+                    {
+                        Logger.Log($"[GameSync] Complete game synchronization finished successfully!");
+                        onProgress($"* Game fully synchronized and ready!");
+                        return true;
+                    }
                 }
                 catch (Exception ex)
                 {
