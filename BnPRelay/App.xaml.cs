@@ -32,18 +32,29 @@ namespace BnPRelay
         protected override void OnStartup(StartupEventArgs e)
         {
             // ─── SINGLE INSTANCE ENFORCEMENT ───
-            _appMutex = new System.Threading.Mutex(true, AppMutexName, out bool createdNew);
-            if (!createdNew)
+            try
             {
-                // Bring existing window to the front
-                IntPtr existingHwnd = FindWindow(null, "BnP Together ONLINE");
-                if (existingHwnd != IntPtr.Zero)
+                _appMutex = new System.Threading.Mutex(true, AppMutexName, out bool createdNew);
+                if (!createdNew)
                 {
-                    ShowWindow(existingHwnd, 9); // SW_RESTORE
-                    SetForegroundWindow(existingHwnd);
+                    // Check if an existing active window is actually present
+                    IntPtr existingHwnd = FindWindow(null, "BnP Together ONLINE");
+                    if (existingHwnd != IntPtr.Zero)
+                    {
+                        ShowWindow(existingHwnd, 9); // SW_RESTORE
+                        SetForegroundWindow(existingHwnd);
+                        Current.Shutdown();
+                        return;
+                    }
                 }
-                Current.Shutdown();
-                return;
+            }
+            catch (System.Threading.AbandonedMutexException)
+            {
+                // Previous process terminated abruptly; we now safely own the mutex.
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("SingleInstanceMutex", ex);
             }
 
             base.OnStartup(e);
