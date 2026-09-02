@@ -22,7 +22,7 @@ namespace BnPRelay.Setup
     {
         public const string ExpectedExeHash  = "DCE0044CC127B4FCF57BFB0221755E567F7F72523612B34F81F80AF054011688";
         public const string ExpectedDataHash = "366ACE82B8A12E98E56DAC1EE77DE4EBF0F03D3199AFA6189E9D68FE0C76AEAE";
-        private const string CompleteGamePackageUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.16/bnp_complete_game.zip";
+        private const string CompleteGamePackageUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.17/bnp_complete_game.zip";
 
         private static readonly string[] CommonPaths = {
             @"C:\Program Files (x86)\Steam\steamapps\common\Undertale",
