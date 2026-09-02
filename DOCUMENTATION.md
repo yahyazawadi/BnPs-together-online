@@ -205,7 +205,7 @@ Using `UndertaleModLib`, the following bytecode transforms were applied to `data
 
 ### B. Battle & Game Synchronization Enhancements
 1. **Automatic Battle State Detection & Turn Lockstep:**
-   - Memory watcher for GameMaker global battle flags (`global.inbattle`, `global.myfight`) to automatically trigger `TurnSyncBarrier` without requiring manual sync hotkeys.
+   - Memory/GML watcher for GameMaker global battle flags (`global.inbattle`, `global.myfight`) to automatically trigger `TurnSyncBarrier` without requiring manual sync hotkeys.
 2. **Dynamic Cutscene & Dialogue Synchronization:**
    - Synchronize text progression and unskippable story sequences so both players experience narrative triggers, NPC dialogues, and boss transitions at identical frame rates.
 3. **Smart Delta Rollback & Network Ping Compensation:**
@@ -216,3 +216,51 @@ Using `UndertaleModLib`, the following bytecode transforms were applied to `data
    - Post to `r/Undertale` and `r/UndertaleMods` showcasing how *Bits & Pieces Together* was converted from single-PC local co-op into true online peer-to-peer multiplayer.
 2. **Automated CI/CD GitHub Actions Pipeline:**
    - Build and release new versions automatically on Git tag push with release notes and binary attachments.
+
+---
+
+## 10. Co-op Battle Synchronization Architecture (Client-Side Hit Registration & Seed Duplication)
+
+### A. The Core Combat Problem
+In *Undertale Together*, running two independent GameMaker instances over the network creates immediate combat desyncs if relying purely on keystrokes:
+1. **RNG Trajectory Drift:** GameMaker's `irandom()` rolls different numbers for bullet trajectories, attack variants, and damage numbers on each PC.
+2. **Hitbox Latency Penalty:** If Player 2's collisions are evaluated on the Host with 30-50ms ping, P2 gets hit by bullets they successfully dodged on their own screen.
+3. **Turn Transition Skew:** If one PC drops frames during the bullet hell wave, its wave timer expires later, causing one player to be in the menu while the other is still dodging.
+
+### B. The 3 Architectural Pillars of Co-op Battle Sync
+
+#### 1. Deterministic Seed Locking (`TurnSeed` Injection)
+- **Mechanism:** At the start of every enemy attack wave (`global.myfight == 3`), Host generates a 64-bit integer seed and sends packet `0x02 (TurnSeed)`.
+- **Execution:** Both Host and Client call GameMaker's native `random_set_seed(Seed)` at the exact start of the wave.
+- **Benefit:** Both game engines generate identical bullet patterns, angles, and velocities locally with zero bandwidth overhead (no need to stream dozens of bullet coordinate vectors).
+
+#### 2. Client-Authoritative Hit Registration & Decoupled Hitboxes
+- **Mechanism:** Hit detection is strictly local to each player's machine to eliminate lag-induced unfair hits:
+  - **Host Instance:** Authoritative over Player 1 (`obj_heart`). Collision detection on Player 2 (`obj_heart_p2`) is **disabled** (rendered purely as an interpolated visual avatar).
+  - **Client Instance:** Authoritative over Player 2 (`obj_heart_p2`). Collision detection on Player 1 (`obj_heart`) is **disabled** (rendered purely as an interpolated visual avatar).
+- **Damage Broadcast:** When a player suffers a hit on their local screen, their client applies damage locally and broadcasts a discrete packet: `PlayerDamaged(PlayerIndex, NewHP, InvulnerabilityFrames)`.
+- **Result:** Dodging feels 100% responsive with zero lag penalty, while both screens stay synchronized on player health bars.
+
+#### 3. Turn End Lockstep Barrier (`Wave_Finished`)
+- **Mechanism:** Enemy attack phases run on internal GameMaker timers/alarms (`alarm[0]`).
+- **Barrier Routine:** When a player's local wave timer reaches 0, the game enters a brief holding state (`Wave_Finished`).
+- **Release Condition:** The battle state machine only transitions back to `global.myfight = 0` (Menu Selection) once **both** Host and Client have transmitted their `Wave_Finished` acknowledgments, preventing one player from taking actions while the other is still in bullet hell.
+
+### C. Co-op Damage Calculation & Monster HP Authority
+- **Reticle Timing:** Accuracy multiplier is calculated per player:
+  $$\text{Multiplier} = f(|\text{Reticle.x} - 320|)$$
+- **Base Math:** $\text{Damage}_i = (\text{ATK}_i - \text{DEF}_{\text{target}}) \times \text{Multiplier}_i$
+- **Authority:** Host aggregates damage from both P1 and P2 strikes and broadcasts authoritative monster HP updates (`global.monsterhp[target] = new_hp`), ensuring monsters take identical damage and trigger death/dust animations at the exact same tick on both screens.
+
+### D. Automated Bytecode Decoupling & Role Assignment (`Setup/Patch-BnPDecoupledCollisions.ps1`)
+To enforce client-authoritative hit registration and streamline startup in `data.win`:
+1. **Selection Screen Bypass (`obj_time_Create_0`):**
+   - Automatically sets `global.playerindexor = 1` for Host (Player 1) and `global.playerindexor = 2` for Client (Player 2), completely eliminating the manual device selection prompt on game launch.
+2. **Hitbox Decoupling:**
+   - **79 Player 1 Collisions (`*_Collision_af950111...` & `Collision_752`):**
+     - Set to `exit.i` on Client (`-Role Client`), transforming Player 1 into a visual ghost avatar on the Client's screen.
+   - **23 Player 2 Collisions (`*_Collision_1862` & `Collision_0`):**
+     - Set to `exit.i` on Host (`-Role Host`), transforming Player 2 into a visual ghost avatar on the Host's screen.
+3. **Verification:** Both roles verified with `UndertaleModLib` against `data.win`.
+
+

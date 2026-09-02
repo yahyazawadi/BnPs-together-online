@@ -29,6 +29,14 @@ namespace BnPRelay
         public event Action? ClientDisconnected;
         public event Action? SeedAckReceived_Raw;
 
+        // New Game State Events
+        public event Action<OverworldStateData>? OverworldStateReceived;
+        public event Action<CombatStateData>? CombatEventReceived;
+        public event Action<PlayerHitData>? PlayerHitReceived;
+        public event Action<byte>? WaveFinishedReceived;
+        public event Action<HeartPositionData>? HeartPositionReceived;
+        public event Action<string>? RemoteLogReceived;
+
         public HeartbeatManager? Heartbeat { get; private set; }
 
         public async Task StartAsync()
@@ -67,6 +75,47 @@ namespace BnPRelay
             if (_client?.Connected != true) return;
             var stream = _client.GetStream();
             await PacketFramer.SendAsync(stream, PacketType.Input, new[] { mask.Value }, _cts.Token);
+        }
+
+        public async Task SendOverworldStateAsync(OverworldStateData state)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            byte[] payload = PacketSerializer.EncodeOverworld(
+                state.RoomId, state.InteractFlag,
+                state.P1X, state.P1Y, state.P1Sprite, state.P1Frame,
+                state.P2X, state.P2Y, state.P2Sprite, state.P2Frame
+            );
+            await PacketFramer.SendAsync(stream, PacketType.OverworldState, payload, _cts.Token);
+        }
+
+        public async Task SendCombatEventAsync(CombatStateData combat)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            byte[] payload = PacketSerializer.EncodeCombatEvent(
+                combat.TurnState, combat.TargetId, combat.Damage, combat.MonsterHp, combat.Seed
+            );
+            await PacketFramer.SendAsync(stream, PacketType.CombatEvent, payload, _cts.Token);
+        }
+
+        public async Task SendHeartPositionSyncAsync(HeartPositionData heart)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            byte[] payload = PacketSerializer.EncodeHeartPosition(
+                heart.P1X, heart.P1Y, heart.P1SoulMode,
+                heart.P2X, heart.P2Y, heart.P2SoulMode
+            );
+            await PacketFramer.SendAsync(stream, PacketType.HeartPositionSync, payload, _cts.Token);
+        }
+
+        public async Task SendPlayerHitAsync(PlayerHitData hit)
+        {
+            if (_client?.Connected != true) return;
+            var stream = _client.GetStream();
+            byte[] payload = PacketSerializer.EncodePlayerHit(hit.PlayerIndex, hit.RemainingHp, hit.InvFrames);
+            await PacketFramer.SendAsync(stream, PacketType.PlayerHit, payload, _cts.Token);
         }
 
         public async Task SendTurnSeedAsync(int seed, byte turnIndex)
@@ -132,6 +181,51 @@ namespace BnPRelay
                             // Client confirmed seed — fire AttackGo
                             await SendAttackGoAsync(payload[0]);
                             SeedAckReceived_Raw?.Invoke();
+                            break;
+                        case PacketType.OverworldState:
+                            var (roomId, interact, p1x, p1y, p1s, p1f, p2x, p2y, p2s, p2f) = PacketSerializer.DecodeOverworld(payload);
+                            OverworldStateReceived?.Invoke(new OverworldStateData
+                            {
+                                RoomId = roomId,
+                                InteractFlag = interact,
+                                P1X = p1x, P1Y = p1y, P1Sprite = p1s, P1Frame = p1f,
+                                P2X = p2x, P2Y = p2y, P2Sprite = p2s, P2Frame = p2f
+                            });
+                            break;
+                        case PacketType.CombatEvent:
+                            var (turnState, targetId, dmg, hp, seed) = PacketSerializer.DecodeCombatEvent(payload);
+                            CombatEventReceived?.Invoke(new CombatStateData
+                            {
+                                TurnState = turnState, TargetId = targetId, Damage = dmg, MonsterHp = hp, Seed = seed
+                            });
+                            break;
+                        case PacketType.PlayerHit:
+                            var (pIdx, remHp, inv) = PacketSerializer.DecodePlayerHit(payload);
+                            Logger.Log($"[Host] Received PlayerHit from Client: P{pIdx} HP -> {remHp}");
+                            PlayerHitReceived?.Invoke(new PlayerHitData
+                            {
+                                PlayerIndex = pIdx, RemainingHp = remHp, InvFrames = inv
+                            });
+                            break;
+                        case PacketType.WaveFinished:
+                            if (payload.Length > 0)
+                            {
+                                WaveFinishedReceived?.Invoke(payload[0]);
+                                Logger.Log($"[Host] Received WaveFinished from Client for turn {payload[0]}");
+                            }
+                            break;
+                        case PacketType.RemoteLog:
+                            string remoteLog = System.Text.Encoding.UTF8.GetString(payload);
+                            Logger.Log($"[Client-Remote] {remoteLog}");
+                            RemoteLogReceived?.Invoke(remoteLog);
+                            break;
+                        case PacketType.HeartPositionSync:
+                            var (hP1x, hP1y, hP1m, hP2x, hP2y, hP2m) = PacketSerializer.DecodeHeartPosition(payload);
+                            HeartPositionReceived?.Invoke(new HeartPositionData
+                            {
+                                P1X = hP1x, P1Y = hP1y, P1SoulMode = hP1m,
+                                P2X = hP2x, P2Y = hP2y, P2SoulMode = hP2m
+                            });
                             break;
                         case PacketType.Pong:
                             Heartbeat.OnPongReceived();

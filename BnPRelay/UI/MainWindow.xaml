@@ -3,9 +3,9 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BnP Together ONLINE"
         Icon="pack://application:,,,/UI/Assets/heart.ico"
-        Width="440" Height="320"
-        MinWidth="440" MinHeight="320"
-        ResizeMode="CanMinimize"
+        Width="480" Height="400"
+        MinWidth="460" MinHeight="320"
+        ResizeMode="CanResizeWithGrip"
         Background="#000000"
         WindowStartupLocation="CenterScreen"
         Loaded="Window_Loaded">
@@ -152,9 +152,50 @@
             </Grid>
         </Border>
 
-        <!-- Status bar -->
-        <TextBlock Grid.Row="2" x:Name="TxtStatus"
-                   Style="{StaticResource PixelTextSmall}"
-                   Margin="0,8,0,0" TextWrapping="Wrap"/>
+        <!-- Status bar & Live Log Toggle -->
+        <Grid Grid.Row="2" Margin="0,8,0,0">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Grid Grid.Row="0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Grid.Column="0" x:Name="TxtStatus"
+                           Style="{StaticResource PixelTextSmall}"
+                           VerticalAlignment="Center" TextWrapping="Wrap"/>
+                <Button Grid.Column="1" x:Name="BtnToggleLogs" Content="[▼ LOGS]"
+                        Style="{StaticResource PixelButton}" Margin="8,0,0,0"
+                        Click="BtnToggleLogs_Click"/>
+            </Grid>
+
+            <!-- Collapsible Live Log Console -->
+            <Border Grid.Row="1" x:Name="PanelLogConsole" Visibility="Collapsed"
+                    Background="#050505" BorderBrush="#303030" BorderThickness="1"
+                    CornerRadius="2" Margin="0,8,0,0" Height="150">
+                <Grid Margin="6">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="*"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+                    <ScrollViewer Grid.Row="0" x:Name="ScrollLogs" VerticalScrollBarVisibility="Auto">
+                        <TextBox x:Name="TxtLiveLogs" IsReadOnly="True"
+                                 Background="Transparent" Foreground="#A0FF80"
+                                 BorderThickness="0" FontFamily="Consolas, Courier New, monospace"
+                                 FontSize="11" TextWrapping="Wrap"/>
+                    </ScrollViewer>
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,4,0,0">
+                        <Button Content="COPY" Style="{StaticResource PixelButton}"
+                                Margin="0,0,6,0" Click="BtnCopyLogs_Click"/>
+                        <Button Content="CLEAR" Style="{StaticResource PixelButton}"
+                                Click="BtnClearLogs_Click"/>
+                    </StackPanel>
+                </Grid>
+            </Border>
+        </Grid>
     </Grid>
 </Window>

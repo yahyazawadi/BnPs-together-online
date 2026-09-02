@@ -15,6 +15,7 @@ namespace BnPRelay
         private readonly SaveFileMirror _saveMirror = new();
         private readonly LowLevelKeyboardHook _keyHook = new();
         private readonly MemoryManager _mem = new();
+        private readonly GameStateProvider _stateProvider = new();
         private TurnSyncBarrier? _turnSync;
         private InputBitmask _currentMask;
         private bool _isHost;
@@ -30,6 +31,8 @@ namespace BnPRelay
             }
             catch { }
 
+            Logger.LogEmitted += OnLogEmitted;
+
             _injector.OnWindowFound += hwnd =>
                 Dispatcher.Invoke(() => SetStatus("Undertale window found — ready to relay!"));
 
@@ -37,6 +40,45 @@ namespace BnPRelay
             {
                 if (_isHost && _host != null)
                     await _host.SendSaveFileAsync(fileName, data);
+            };
+
+            // Hook state provider broadcasts to active network session
+            _stateProvider.OverworldStateChanged += async state =>
+            {
+                if (_isHost && _host != null)
+                    await _host.SendOverworldStateAsync(state);
+                else if (!_isHost && _client != null)
+                    await _client.SendOverworldStateAsync(state);
+            };
+
+            _stateProvider.CombatEventDispatched += async combat =>
+            {
+                if (_isHost && _host != null)
+                    await _host.SendCombatEventAsync(combat);
+                else if (!_isHost && _client != null)
+                    await _client.SendCombatEventAsync(combat);
+            };
+
+            _stateProvider.HeartPositionChanged += async heart =>
+            {
+                if (_isHost && _host != null)
+                    await _host.SendHeartPositionSyncAsync(heart);
+                else if (!_isHost && _client != null)
+                    await _client.SendHeartPositionSyncAsync(heart);
+            };
+
+            _stateProvider.PlayerDamaged += async hit =>
+            {
+                if (_isHost && _host != null)
+                    await _host.SendPlayerHitAsync(hit);
+                else if (!_isHost && _client != null)
+                    await _client.SendPlayerHitAsync(hit);
+            };
+
+            _stateProvider.WaveFinished += async turnIdx =>
+            {
+                if (!_isHost && _client != null)
+                    await _client.SendWaveFinishedAsync(turnIdx);
             };
         }
 
@@ -133,10 +175,19 @@ namespace BnPRelay
             _host.ClientConnected       += () => Dispatcher.Invoke(OnConnected);
             _host.ClientDisconnected    += () => Dispatcher.Invoke(OnDisconnected);
 
+            // Wire state reception on host
+            _host.OverworldStateReceived += state => _stateProvider.UpdateOverworld(state);
+            _host.CombatEventReceived    += combat => _stateProvider.DispatchCombatEvent(combat);
+            _host.HeartPositionReceived  += heart => _stateProvider.UpdateHeartPositions(heart);
+            _host.PlayerHitReceived      += hit => _stateProvider.ReportPlayerHit(hit.PlayerIndex, hit.RemainingHp, hit.InvFrames);
+
             // Wire TurnSyncBarrier for host
             _turnSync = new TurnSyncBarrier(_mem,
                 (seed, idx) => _host.SendTurnSeedAsync(seed, idx),
-                () => Task.CompletedTask /* AttackGo sent internally by HostSession */);
+                idx => _host.SendAttackGoAsync(idx),
+                combat => _host.SendCombatEventAsync(combat));
+
+            _host.WaveFinishedReceived += turnIdx => _turnSync?.OnClientWaveFinishedReceived(turnIdx);
 
             await _host.StartAsync();
         }
@@ -190,12 +241,21 @@ namespace BnPRelay
             _client.LatencyUpdated      += ms => Dispatcher.Invoke(() => TxtLatency.Text = $"* Ping: {ms}ms");
             _client.RemoteInputReceived += mask => _injector.InjectDelta(mask);
             _client.SaveFileReceived    += (name, data) => SaveFileMirror.WriteSaveFile(name, data);
+
+            // Wire state reception on client
+            _client.OverworldStateReceived += state => _stateProvider.UpdateOverworld(state);
+            _client.CombatEventReceived    += combat => _stateProvider.DispatchCombatEvent(combat);
+            _client.HeartPositionReceived  += heart => _stateProvider.UpdateHeartPositions(heart);
+            _client.PlayerHitReceived      += hit => _stateProvider.ReportPlayerHit(hit.PlayerIndex, hit.RemainingHp, hit.InvFrames);
+
+            _turnSync = new TurnSyncBarrier(_mem, (_, _) => Task.CompletedTask, _ => Task.CompletedTask);
+
             _client.TurnSeedReceived    += (seed, idx) =>
             {
-                _turnSync ??= new TurnSyncBarrier(_mem, (_, _) => Task.CompletedTask, () => Task.CompletedTask);
                 _turnSync.OnTurnSeedReceived(seed, (byte)idx);
             };
             _client.AttackGoReceived    += idx => _turnSync?.OnAttackGoReceived(idx);
+            _client.WaveFinishedReceived += turnIdx => _turnSync?.OnClientWaveFinishedReceived(turnIdx);
             _client.HostConnected       += () => Dispatcher.Invoke(OnConnected);
             _client.HostDisconnected    += () => Dispatcher.Invoke(() => OnDisconnected($"Connecting to {ip} failed"));
             _client.ConnectionFailed    += reason => Dispatcher.Invoke(() =>
@@ -567,8 +627,57 @@ del /f /q ""{zipPath}""
 
         private void SetStatus(string msg) => TxtStatus.Text = msg;
 
+        // ─── LIVE DEBUG LOG CONSOLE ──────────────────────────────────────────
+
+        private void OnLogEmitted(string line)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                if (TxtLiveLogs == null) return;
+                TxtLiveLogs.AppendText(line + "\n");
+                if (TxtLiveLogs.Text.Length > 25000)
+                {
+                    TxtLiveLogs.Text = TxtLiveLogs.Text.Substring(TxtLiveLogs.Text.Length - 18000);
+                }
+                ScrollLogs?.ScrollToEnd();
+            });
+        }
+
+        private void BtnToggleLogs_Click(object sender, RoutedEventArgs e)
+        {
+            if (PanelLogConsole.Visibility == Visibility.Visible)
+            {
+                PanelLogConsole.Visibility = Visibility.Collapsed;
+                BtnToggleLogs.Content = "[▼ LOGS]";
+                Height = 360;
+            }
+            else
+            {
+                PanelLogConsole.Visibility = Visibility.Visible;
+                BtnToggleLogs.Content = "[▲ HIDE LOGS]";
+                Height = 500;
+                ScrollLogs?.ScrollToEnd();
+            }
+        }
+
+        private void BtnCopyLogs_Click(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                Clipboard.SetText(TxtLiveLogs.Text);
+                SetStatus("* Logs copied to clipboard!");
+            }
+            catch { }
+        }
+
+        private void BtnClearLogs_Click(object sender, RoutedEventArgs e)
+        {
+            TxtLiveLogs.Clear();
+        }
+
         protected override void OnClosed(EventArgs e)
         {
+            Logger.LogEmitted -= OnLogEmitted;
             _keyHook.Dispose();
             _injector.Dispose();
             _saveMirror.Dispose();

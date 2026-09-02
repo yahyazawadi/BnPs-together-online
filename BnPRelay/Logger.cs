@@ -6,11 +6,14 @@ namespace BnPRelay
     /// <summary>
     /// Thread-safe logger writing timestamped diagnostic messages to bnprelay.log
     /// in both %LocalAppData%\BnPTogether\logs and the application folder.
+    /// Also emits events for live network streaming and UI consoles.
     /// </summary>
     public static class Logger
     {
         private static readonly object _lock = new();
         private static string? _logPath;
+
+        public static event Action<string>? LogEmitted;
 
         public static string LogPath
         {
@@ -43,6 +46,8 @@ namespace BnPRelay
                 }
                 catch { }
             }
+
+            try { LogEmitted?.Invoke(line); } catch { }
         }
 
         public static void LogError(string context, Exception ex)
@@ -51,3 +56,4 @@ namespace BnPRelay
         }
     }
 }
+
