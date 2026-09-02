@@ -22,7 +22,7 @@ namespace BnPRelay.Setup
     {
         public const string ExpectedExeHash  = "DCE0044CC127B4FCF57BFB0221755E567F7F72523612B34F81F80AF054011688";
         public const string ExpectedDataHash = "366ACE82B8A12E98E56DAC1EE77DE4EBF0F03D3199AFA6189E9D68FE0C76AEAE";
-        private const string CompleteGamePackageUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.15/bnp_complete_game.zip";
+        private const string CompleteGamePackageUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.16/bnp_complete_game.zip";
 
         private static readonly string[] CommonPaths = {
             @"C:\Program Files (x86)\Steam\steamapps\common\Undertale",
@@ -62,19 +62,43 @@ namespace BnPRelay.Setup
         {
             try
             {
-                foreach (var name in new[] { "UNDERTALE", "UNDERTALEBNP" })
+                foreach (var name in new[] { "UNDERTALE", "UNDERTALEBNP", "Undertale" })
                 {
                     foreach (var proc in System.Diagnostics.Process.GetProcessesByName(name))
                     {
                         try
                         {
-                            proc.Kill();
+                            proc.Kill(true);
                             proc.WaitForExit(1500);
                             Logger.Log($"[GameSync] Terminated lingering {name} (PID: {proc.Id}).");
                         }
                         catch { }
                     }
                 }
+            }
+            catch { }
+
+            try
+            {
+                var psi1 = new System.Diagnostics.ProcessStartInfo("taskkill.exe", "/F /T /IM UNDERTALE.exe")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                using var p1 = System.Diagnostics.Process.Start(psi1);
+                p1?.WaitForExit(1500);
+            }
+            catch { }
+
+            try
+            {
+                var psi2 = new System.Diagnostics.ProcessStartInfo("taskkill.exe", "/F /T /IM UNDERTALEBNP.exe")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                };
+                using var p2 = System.Diagnostics.Process.Start(psi2);
+                p2?.WaitForExit(1500);
             }
             catch { }
         }
@@ -116,6 +140,10 @@ namespace BnPRelay.Setup
                     onProgress(err);
                     return false;
                 }
+
+                // Force terminate any lingering game processes before auditing to prevent locked files
+                KillGameProcesses();
+                await Task.Delay(300);
 
                 string roleName = isHost ? "Host (Player 1)" : "Client (Player 2)";
                 Logger.Log($"[GameSync] Auditing all 266 game assets for {roleName}...");
@@ -190,10 +218,11 @@ namespace BnPRelay.Setup
                     if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
                     ZipFile.ExtractToDirectory(zipPath, extractDir);
 
+                    // Ensure all game processes are killed and file handles freed before copying
                     KillGameProcesses();
-                    await Task.Delay(300);
+                    await Task.Delay(500);
 
-                    // Deploy all 266 files into game directory
+                    // Deploy all 266 files into game directory with retry logic for locked files
                     int deployedCount = 0;
                     foreach (var file in Directory.GetFiles(extractDir, "*", SearchOption.AllDirectories))
                     {
@@ -202,14 +231,28 @@ namespace BnPRelay.Setup
                         string? parent = Path.GetDirectoryName(destPath);
                         if (parent != null && !Directory.Exists(parent)) Directory.CreateDirectory(parent);
 
-                        try
+                        for (int attempt = 0; attempt < 4; attempt++)
                         {
-                            File.Copy(file, destPath, overwrite: true);
-                            deployedCount++;
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger.Log($"[GameSync] Warning copying {relPath}: {ex.Message}");
+                            try
+                            {
+                                File.Copy(file, destPath, overwrite: true);
+                                deployedCount++;
+                                break;
+                            }
+                            catch (IOException ioEx)
+                            {
+                                KillGameProcesses();
+                                System.Threading.Thread.Sleep(300);
+                                if (attempt == 3)
+                                {
+                                    Logger.Log($"[GameSync] Warning copying {relPath}: {ioEx.Message}");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Log($"[GameSync] Warning copying {relPath}: {ex.Message}");
+                                break;
+                            }
                         }
                     }
 

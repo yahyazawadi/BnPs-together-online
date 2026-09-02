@@ -4,7 +4,7 @@
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
-#define MyAppVersion "1.2.15"
+#define MyAppVersion "1.2.16"
 #define MyAppPublisher "Yahya Zawadi & BnP Together Online Team"
 #define MyAppURL "https://github.com/yahyazawadi/BnPs-together-online"
 #define MyAppExeName "BnPRelay.exe"
@@ -82,7 +82,9 @@ var
   ErrorCode: Integer;
 begin
   Exec('taskkill.exe', '/F /T /IM BnPRelay.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
-  Exec('powershell.exe', '-NoProfile -Command "Get-Process -Name BnPRelay -ErrorAction SilentlyContinue | Stop-Process -Force"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('taskkill.exe', '/F /T /IM UNDERTALE.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('taskkill.exe', '/F /T /IM UNDERTALEBNP.exe', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
+  Exec('powershell.exe', '-NoProfile -Command "Get-Process -Name BnPRelay,UNDERTALE,UNDERTALEBNP -ErrorAction SilentlyContinue | Stop-Process -Force"', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
   Exec('cmd.exe', '/c ping 127.0.0.1 -n 2 > nul', '', SW_HIDE, ewWaitUntilTerminated, ErrorCode);
 end;
 
