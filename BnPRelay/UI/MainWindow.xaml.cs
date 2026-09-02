@@ -587,30 +587,27 @@ exit
                     SetStatus("* Relay active (memory attach failed — RNG sync limited)");
             });
 
-            // Launch Undertale directly if found, otherwise via Steam AppID 391540
-            string[] gamePaths = {
-                @"C:\Program Files (x86)\Steam\steamapps\common\Undertale\UNDERTALE.exe",
-                @"C:\Program Files\Steam\steamapps\common\Undertale\UNDERTALE.exe",
-                @"D:\SteamLibrary\steamapps\common\Undertale\UNDERTALE.exe",
-                @"E:\SteamLibrary\steamapps\common\Undertale\UNDERTALE.exe"
-            };
-
+            // Launch Undertale directly from verified directory
+            string? undertaleDir = GameIntegrityChecker.GetUndertaleDirectory();
+            string exePath = undertaleDir != null ? System.IO.Path.Combine(undertaleDir, "UNDERTALE.exe") : "";
             bool launched = false;
-            foreach (var path in gamePaths)
+
+            if (!string.IsNullOrEmpty(exePath) && System.IO.File.Exists(exePath))
             {
-                if (System.IO.File.Exists(path))
+                try
                 {
-                    try
+                    Logger.Log($"[GameSync] Launching game executable: {exePath}");
+                    var proc = Process.Start(new ProcessStartInfo(exePath)
                     {
-                        Process.Start(new ProcessStartInfo(path)
-                        {
-                            WorkingDirectory = System.IO.Path.GetDirectoryName(path),
-                            UseShellExecute = true
-                        });
-                        launched = true;
-                        break;
-                    }
-                    catch { }
+                        WorkingDirectory = undertaleDir,
+                        UseShellExecute = true
+                    });
+                    Logger.Log($"[GameSync] Undertale process started! PID: {proc?.Id}");
+                    launched = true;
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("GameLaunch", ex);
                 }
             }
 
@@ -618,7 +615,7 @@ exit
             {
                 try
                 {
-                    // Undertale Steam AppID is 391540
+                    Logger.Log("[GameSync] Launching via Steam protocol steam://run/391540...");
                     Process.Start(new ProcessStartInfo("steam://run/391540") { UseShellExecute = true });
                 }
                 catch
