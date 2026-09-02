@@ -34,11 +34,23 @@ namespace BnPRelay
 
             Logger.LogEmitted += OnLogEmitted;
 
+            Logger.Log("==================================================");
+            Logger.Log($" BnP Together ONLINE {UpdateChecker.CurrentVersion} Started");
+            Logger.Log($" OS: {Environment.OSVersion}, 64-bit: {Environment.Is64BitOperatingSystem}");
+            Logger.Log($" Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
+            Logger.Log($" Local IP: {GetLocalIp()}");
+            Logger.Log($" Log File: {Logger.LogPath}");
+            Logger.Log("==================================================");
+
             _injector.OnWindowFound += hwnd =>
+            {
+                Logger.Log($"[Injector] Undertale HWND attached: 0x{hwnd.ToInt64():X}");
                 Dispatcher.Invoke(() => SetStatus("Undertale window found — ready to relay!"));
+            };
 
             _saveMirror.SaveChanged += async (fileName, data) =>
             {
+                Logger.Log($"[SaveSync] Local save changed: {fileName} ({data.Length} bytes)");
                 if (_isHost && _host != null)
                     await _host.SendSaveFileAsync(fileName, data);
             };
@@ -728,6 +740,11 @@ exit
                 SetStatus("* Logs copied to clipboard!");
             }
             catch { }
+        }
+
+        private void BtnOpenLogFolder_Click(object sender, RoutedEventArgs e)
+        {
+            Logger.OpenLogFolder();
         }
 
         private void BtnClearLogs_Click(object sender, RoutedEventArgs e)

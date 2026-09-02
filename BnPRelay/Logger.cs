@@ -54,6 +54,23 @@ namespace BnPRelay
         {
             Log($"[ERROR] {context}: {ex.GetType().Name} - {ex.Message}\n{ex.StackTrace}");
         }
+
+        public static void OpenLogFolder()
+        {
+            try
+            {
+                string dir = Path.GetDirectoryName(LogPath)!;
+                if (Directory.Exists(dir))
+                {
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo
+                    {
+                        FileName = dir,
+                        UseShellExecute = true
+                    });
+                }
+            }
+            catch { }
+        }
     }
 }
 
