@@ -58,18 +58,49 @@ namespace BnPRelay.Setup
             }
         }
 
+        private static bool DeployFileWithRenameFallback(string src, string dest)
+        {
+            try
+            {
+                File.Copy(src, dest, overwrite: true);
+                return true;
+            }
+            catch
+            {
+                // File is locked by a process holding a handle/image lock (e.g. Steam, Discord, overlay hook).
+                // Windows NTFS allows renaming locked/loaded binaries away to make room for the fresh file!
+                try
+                {
+                    string oldPath = dest + ".old_" + DateTime.UtcNow.Ticks;
+                    if (File.Exists(oldPath))
+                    {
+                        try { File.Delete(oldPath); } catch { }
+                    }
+                    File.Move(dest, oldPath, true);
+                    File.Copy(src, dest, overwrite: true);
+                    try { File.Delete(oldPath); } catch { }
+                    return true;
+                }
+                catch (Exception ex2)
+                {
+                    Logger.Log($"[GameSync] Warning deploying {Path.GetFileName(dest)}: {ex2.Message}");
+                    return false;
+                }
+            }
+        }
+
         public static void KillGameProcesses()
         {
             try
             {
-                foreach (var name in new[] { "UNDERTALE", "UNDERTALEBNP", "Undertale" })
+                foreach (var name in new[] { "UNDERTALE", "UNDERTALEBNP", "Undertale", "UndertaleModTool", "GameOverlayUI" })
                 {
                     foreach (var proc in System.Diagnostics.Process.GetProcessesByName(name))
                     {
                         try
                         {
                             proc.Kill(true);
-                            proc.WaitForExit(1500);
+                            proc.WaitForExit(1000);
                             Logger.Log($"[GameSync] Terminated lingering {name} (PID: {proc.Id}).");
                         }
                         catch { }
@@ -80,25 +111,13 @@ namespace BnPRelay.Setup
 
             try
             {
-                var psi1 = new System.Diagnostics.ProcessStartInfo("taskkill.exe", "/F /T /IM UNDERTALE.exe")
+                var psi = new System.Diagnostics.ProcessStartInfo("cmd.exe", "/c taskkill /F /T /IM UNDERTALE.exe /IM UNDERTALEBNP.exe /IM GameOverlayUI.exe >nul 2>&1")
                 {
                     CreateNoWindow = true,
                     UseShellExecute = false
                 };
-                using var p1 = System.Diagnostics.Process.Start(psi1);
-                p1?.WaitForExit(1500);
-            }
-            catch { }
-
-            try
-            {
-                var psi2 = new System.Diagnostics.ProcessStartInfo("taskkill.exe", "/F /T /IM UNDERTALEBNP.exe")
-                {
-                    CreateNoWindow = true,
-                    UseShellExecute = false
-                };
-                using var p2 = System.Diagnostics.Process.Start(psi2);
-                p2?.WaitForExit(1500);
+                using var p = System.Diagnostics.Process.Start(psi);
+                p?.WaitForExit(1000);
             }
             catch { }
         }
@@ -222,7 +241,7 @@ namespace BnPRelay.Setup
                     KillGameProcesses();
                     await Task.Delay(500);
 
-                    // Deploy all 266 files into game directory with retry logic for locked files
+                    // Deploy all 266 files into game directory using rename-fallback for locked files
                     int deployedCount = 0;
                     foreach (var file in Directory.GetFiles(extractDir, "*", SearchOption.AllDirectories))
                     {
@@ -231,28 +250,9 @@ namespace BnPRelay.Setup
                         string? parent = Path.GetDirectoryName(destPath);
                         if (parent != null && !Directory.Exists(parent)) Directory.CreateDirectory(parent);
 
-                        for (int attempt = 0; attempt < 4; attempt++)
+                        if (DeployFileWithRenameFallback(file, destPath))
                         {
-                            try
-                            {
-                                File.Copy(file, destPath, overwrite: true);
-                                deployedCount++;
-                                break;
-                            }
-                            catch (IOException ioEx)
-                            {
-                                KillGameProcesses();
-                                System.Threading.Thread.Sleep(300);
-                                if (attempt == 3)
-                                {
-                                    Logger.Log($"[GameSync] Warning copying {relPath}: {ioEx.Message}");
-                                }
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Log($"[GameSync] Warning copying {relPath}: {ex.Message}");
-                                break;
-                            }
+                            deployedCount++;
                         }
                     }
 
