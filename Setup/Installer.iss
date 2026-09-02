@@ -18,8 +18,11 @@ AppPublisherURL={#MyAppURL}
 AppSupportURL={#MyAppURL}
 AppUpdatesURL={#MyAppURL}
 DefaultDirName={autopf}\{#MyAppName}
+DisableWelcomePage=yes
+DisableDirPage=yes
 DisableProgramGroupPage=yes
-DisableDirPage=auto
+DisableReadyPage=yes
+DisableFinishedPage=yes
 DirExistsWarning=no
 PrivilegesRequired=lowest
 OutputDir=C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Output
@@ -38,9 +41,6 @@ CreateUninstallRegKey=yes
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
-
 [Files]
 ; Application single-file executable
 Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\Publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs restartreplace
@@ -52,7 +52,7 @@ Source: "C:\Users\CLICK\.gemini\antigravity-ide\scratch\BnPs-together-online\BnP
 [Icons]
 Name: "{autoprograms}\{#MyAppName}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\heart.ico"
 Name: "{autoprograms}\{#MyAppName}\Uninstall {#MyAppName}"; Filename: "{uninstallexe}"; IconFilename: "{app}\heart.ico"
-Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\heart.ico"; Tasks: desktopicon
+Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; IconFilename: "{app}\heart.ico"
 
 [Registry]
 Root: HKCU; Subkey: "Software\Classes\bnptogether"; ValueType: string; ValueName: ""; ValueData: "URL:BnP Together ONLINE Protocol"; Flags: uninsdeletekey
@@ -68,12 +68,6 @@ Type: filesandordirs; Name: "{localappdata}\BnPTogether"
 
 [Code]
 var
-  UninstallButton: TNewButton;
-  IsAlreadyInstalled: Boolean;
-  InstalledAppDir: String;
-  IsUninstallTriggered: Boolean;
-  DeleteCheckboxIndex: Integer;
-  HasAddedDeleteCheckbox: Boolean;
   InstallSuccessful: Boolean;
 
 // Thorough kill of any process holding the relay file, DLLs, or old setup instances
@@ -172,96 +166,21 @@ begin
   CleanFolderOfOldSetups(ExtractFileDir(ExpandConstant('{srcexe}')), CurrentExeName);
 end;
 
-// Detect existing installation directory from registry
-function GetExistingInstallDir(): String;
+procedure CurStepChanged(CurStep: TSetupStep);
 var
-  RegKey: String;
-  ResultStr: String;
+  ErrorCode: Integer;
+  AppExe: String;
 begin
-  RegKey := 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1';
-  if RegQueryStringValue(HKCU, RegKey, 'InstallLocation', ResultStr) then
-    Result := ResultStr
-  else if RegQueryStringValue(HKLM, RegKey, 'InstallLocation', ResultStr) then
-    Result := ResultStr
-  else
-    Result := '';
-end;
-
-procedure OnUninstallClick(Sender: TObject);
-var
-  DesktopShortcut: String;
-  StartMenuFolder: String;
-begin
-  if MsgBox('Are you sure you want to completely remove BnP Together ONLINE and reset all caches?', mbConfirmation, MB_YESNO) = IDYES then
+  if CurStep = ssPostInstall then
   begin
-    ForceKillAllProcesses();
-
-    if (InstalledAppDir <> '') and DirExists(InstalledAppDir) then
+    AppExe := ExpandConstant('{app}\{#MyAppExeName}');
+    if FileExists(AppExe) then
     begin
-      SafePurgeDirectory(InstalledAppDir);
-      DelTree(InstalledAppDir, True, True, True);
-    end;
-
-    if DirExists(ExpandConstant('{localappdata}\BnPTogether')) then
-      DelTree(ExpandConstant('{localappdata}\BnPTogether'), True, True, True);
-
-    DesktopShortcut := ExpandConstant('{autodesktop}\{#MyAppName}.lnk');
-    if FileExists(DesktopShortcut) then
-      DeleteFile(DesktopShortcut);
-    // 4. Delete Start Menu folder
-    StartMenuFolder := ExpandConstant('{autoprograms}\{#MyAppName}');
-    if DirExists(StartMenuFolder) then
-      DelTree(StartMenuFolder, True, True, True);
-
-    // 5. Clean registry uninstall keys & protocol
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Microsoft\Windows\CurrentVersion\Uninstall\{C8E7F3B1-9D24-4B35-8912-3D7E951B40C2}_is1');
-    RegDeleteKeyIncludingSubkeys(HKCU, 'Software\Classes\bnptogether');
-
-    MsgBox('BnP Together ONLINE has been completely removed and reset.', mbInformation, MB_OK);
-    IsUninstallTriggered := True;
-    WizardForm.Close;
-  end;
-end;
-
-procedure CancelButtonClick(CurPageID: Integer; var Cancel, Confirm: Boolean);
-begin
-  if IsUninstallTriggered then
-  begin
-    Confirm := False;
-    Cancel := True;
-  end;
-end;
-
-procedure InitializeWizard();
-begin
-  InstalledAppDir := GetExistingInstallDir();
-  IsAlreadyInstalled := (InstalledAppDir <> '') and DirExists(InstalledAppDir);
-
-  if IsAlreadyInstalled then
-  begin
-    UninstallButton := TNewButton.Create(WizardForm);
-    UninstallButton.Parent := WizardForm;
-    UninstallButton.Caption := 'Uninstall / Fresh Reset';
-    UninstallButton.Width := ScaleX(145);
-    UninstallButton.Height := WizardForm.CancelButton.Height;
-    UninstallButton.Left := WizardForm.ClientWidth - WizardForm.CancelButton.Width - ScaleX(155);
-    UninstallButton.Top := WizardForm.CancelButton.Top;
-    UninstallButton.OnClick := @OnUninstallClick;
-  end;
-  DeleteCheckboxIndex := -1;
-  HasAddedDeleteCheckbox := False;
-end;
-
-procedure CurPageChanged(CurPageID: Integer);
-begin
-  if CurPageID = wpFinished then
-  begin
-    if not HasAddedDeleteCheckbox and (WizardForm.RunList <> nil) then
-    begin
-      DeleteCheckboxIndex := WizardForm.RunList.AddCheckBox('Delete installer after installation', '', 0, True, True, False, False, nil);
-      HasAddedDeleteCheckbox := True;
+      Exec(AppExe, '', '', SW_SHOWNORMAL, ewNoWait, ErrorCode);
     end;
   end;
+  if CurStep = ssDone then
+    InstallSuccessful := True;
 end;
 
 function PrepareToInstall(var NeedsRestart: Boolean): String;
@@ -286,19 +205,11 @@ begin
   ForceKillAllProcesses();
 end;
 
-procedure CurStepChanged(CurStep: TSetupStep);
-begin
-  if CurStep = ssDone then
-    InstallSuccessful := True;
-end;
-
 procedure DeinitializeSetup();
 begin
-  if InstallSuccessful and HasAddedDeleteCheckbox and (WizardForm.RunList <> nil) and (DeleteCheckboxIndex >= 0) and (DeleteCheckboxIndex < WizardForm.RunList.Items.Count) then
+  if InstallSuccessful then
   begin
-    if WizardForm.RunList.Checked[DeleteCheckboxIndex] then
-    begin
-      DeleteSelfInstaller();
-    end;
+    CleanLegacyInstallerFiles();
+    DeleteSelfInstaller();
   end;
 end;
