@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Media.Animation;
 using BnPRelay.Sync;
+using BnPRelay.Setup;
 
 namespace BnPRelay
 {
@@ -545,13 +546,17 @@ exit
 
         // ─── BUTTONS ────────────────────────────────────────────────────────────
 
-        private void BtnLaunch_Click(object sender, RoutedEventArgs e)
+        private async void BtnLaunch_Click(object sender, RoutedEventArgs e)
         {
-            _injector.Enable();
-            SetStatus("* Game launched! Relaying inputs...");
             BtnLaunch.IsEnabled = false;
 
-            // Auto-configure Undertale bytecode for current role (Host=P1, Client=P2)
+            // 1. Verify SHA256 integrity and automatically sync data.win ONLY if different or missing
+            await GameIntegrityChecker.EnsureGameFilesReadyAsync(_isHost, msg => Dispatcher.Invoke(() => SetStatus(msg)));
+
+            _injector.Enable();
+            SetStatus("* Game launched! Relaying inputs...");
+
+            // 2. Run local bytecode patcher as fallback/safety check
             string role = _isHost ? "Host" : "Client";
             try
             {
@@ -569,7 +574,7 @@ exit
                         UseShellExecute = false
                     };
                     using var p = Process.Start(psi);
-                    p?.WaitForExit(10000);
+                    p?.WaitForExit(5000);
                     Logger.Log($"Auto-role patcher finished with exit code {p?.ExitCode}.");
                 }
             }
