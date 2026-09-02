@@ -13,8 +13,9 @@ namespace BnPRelay.Setup
     /// </summary>
     public static class GameIntegrityChecker
     {
-        public const string UnifiedDataHash = "366ACE82B8A12E98E56DAC1EE77DE4EBF0F03D3199AFA6189E9D68FE0C76AEAE";
-        private const string UnifiedDataUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.8/data_unified.win.zip";
+        public const string ExpectedExeHash  = "DCE0044CC127B4FCF57BFB0221755E567F7F72523612B34F81F80AF054011688";
+        public const string ExpectedDataHash = "366ACE82B8A12E98E56DAC1EE77DE4EBF0F03D3199AFA6189E9D68FE0C76AEAE";
+        private const string GamePackageUrl  = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.9/bnp_game_files.zip";
 
         private static readonly string[] CommonPaths = {
             @"C:\Program Files (x86)\Steam\steamapps\common\Undertale",
@@ -28,7 +29,7 @@ namespace BnPRelay.Setup
         {
             foreach (var path in CommonPaths)
             {
-                if (Directory.Exists(path) && File.Exists(Path.Combine(path, "UNDERTALE.exe")))
+                if (Directory.Exists(path))
                     return path;
             }
             return null;
@@ -37,16 +38,23 @@ namespace BnPRelay.Setup
         public static string ComputeSha256(string filePath)
         {
             if (!File.Exists(filePath)) return "";
-            using var sha = SHA256.Create();
-            using var stream = File.OpenRead(filePath);
-            byte[] hash = sha.ComputeHash(stream);
-            return Convert.ToHexString(hash);
+            try
+            {
+                using var sha = SHA256.Create();
+                using var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+                byte[] hash = sha.ComputeHash(stream);
+                return Convert.ToHexString(hash);
+            }
+            catch
+            {
+                return "";
+            }
         }
 
         /// <summary>
-        /// Checks if the local data.win matches the verified unified hash.
+        /// Checks if both UNDERTALE.exe and data.win match the verified Bits & Pieces hashes.
         /// If already valid, finishes instantly without downloading.
-        /// If different or missing, downloads and swaps the verified pre-patched file.
+        /// If different, downloads and extracts the complete verified game package (39 MB).
         /// </summary>
         public static async Task<bool> EnsureGameFilesReadyAsync(bool isHost, Action<string> onProgress)
         {
@@ -55,76 +63,88 @@ namespace BnPRelay.Setup
                 string? gameDir = GetUndertaleDirectory();
                 if (gameDir == null)
                 {
-                    string err = "* Undertale folder not found. Please install Undertale on Steam.";
+                    string err = "* Undertale folder not found in Steam libraries.";
                     Logger.Log($"[GameSync] {err}");
                     onProgress(err);
                     return false;
                 }
 
-                string dataWinPath = Path.Combine(gameDir, "data.win");
+                string exePath  = Path.Combine(gameDir, "UNDERTALE.exe");
+                string dataPath = Path.Combine(gameDir, "data.win");
                 string roleName = isHost ? "Host (Player 1)" : "Client (Player 2)";
 
-                Logger.Log($"[GameSync] Verifying data.win for {roleName}...");
-                onProgress($"* Verifying game data for {roleName}...");
+                Logger.Log($"[GameSync] Verifying complete game files for {roleName}...");
+                onProgress($"* Verifying game integrity...");
 
-                if (File.Exists(dataWinPath))
+                bool exeMatches  = false;
+                bool dataMatches = false;
+
+                if (File.Exists(exePath))
                 {
-                    string localHash = ComputeSha256(dataWinPath);
-                    Logger.Log($"[GameSync] Local hash:    {localHash}");
-                    Logger.Log($"[GameSync] Expected hash: {UnifiedDataHash}");
-
-                    if (string.Equals(localHash, UnifiedDataHash, StringComparison.OrdinalIgnoreCase))
-                    {
-                        Logger.Log($"[GameSync] Hash verified for {roleName} — 100% up to date.");
-                        onProgress($"* Game data verified — 100% up to date!");
-                        return true;
-                    }
+                    string localExeHash = ComputeSha256(exePath);
+                    Logger.Log($"[GameSync] Local UNDERTALE.exe: {localExeHash}");
+                    exeMatches = string.Equals(localExeHash, ExpectedExeHash, StringComparison.OrdinalIgnoreCase);
                 }
 
-                // Hash differs or missing — download pre-patched data.win package
-                Logger.Log($"[GameSync] Hash mismatch or missing. Downloading verified game data package (35 MB)...");
-                onProgress($"* Synchronizing verified game data (35 MB)...");
-                string tempDir = Path.Combine(Path.GetTempPath(), "BnPDataSync");
+                if (File.Exists(dataPath))
+                {
+                    string localDataHash = ComputeSha256(dataPath);
+                    Logger.Log($"[GameSync] Local data.win:     {localDataHash}");
+                    dataMatches = string.Equals(localDataHash, ExpectedDataHash, StringComparison.OrdinalIgnoreCase);
+                }
+
+                if (exeMatches && dataMatches)
+                {
+                    Logger.Log($"[GameSync] Game integrity verified 100% — both EXE and data.win are up to date!");
+                    onProgress($"* Game integrity verified — 100% ready!");
+                    return true;
+                }
+
+                // Download full verified game package (runner + data + DLLs)
+                Logger.Log($"[GameSync] Files missing or outdated (ExeOK={exeMatches}, DataOK={dataMatches}). Downloading verified game package (39 MB)...");
+                onProgress($"* Synchronizing game package (39 MB)...");
+                string tempDir = Path.Combine(Path.GetTempPath(), "BnPGameSync");
                 Directory.CreateDirectory(tempDir);
-                string zipPath = Path.Combine(tempDir, "data_unified.win.zip");
+                string zipPath = Path.Combine(tempDir, "bnp_game_files.zip");
 
                 try
                 {
                     using var http = new HttpClient();
                     http.DefaultRequestHeaders.UserAgent.ParseAdd("BnPRelay-GameSync");
-                    byte[] zipBytes = await http.GetByteArrayAsync(UnifiedDataUrl);
+                    byte[] zipBytes = await http.GetByteArrayAsync(GamePackageUrl);
                     await File.WriteAllBytesAsync(zipPath, zipBytes);
                     Logger.Log($"[GameSync] Downloaded {zipBytes.Length} bytes.");
 
-                    onProgress("* Extracting and applying verified game data...");
+                    onProgress("* Applying verified game engine and data...");
                     string extractDir = Path.Combine(tempDir, "extracted");
                     if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
                     ZipFile.ExtractToDirectory(zipPath, extractDir);
 
-                    string extractedWin = Path.Combine(extractDir, "data_unified.win");
-                    if (!File.Exists(extractedWin))
+                    // Copy all extracted files (UNDERTALE.exe, data.win, DLLs) directly into gameDir
+                    foreach (var file in Directory.GetFiles(extractDir))
                     {
-                        string fallback = Path.Combine(extractDir, "data.win");
-                        if (File.Exists(fallback)) extractedWin = fallback;
+                        string fileName = Path.GetFileName(file);
+                        string destPath = Path.Combine(gameDir, fileName);
+
+                        // Backup original if exists and no backup exists yet
+                        string backupPath = Path.Combine(gameDir, $"{fileName}.original_backup");
+                        if (!File.Exists(backupPath) && File.Exists(destPath))
+                        {
+                            try { File.Copy(destPath, backupPath, false); } catch { }
+                        }
+
+                        File.Copy(file, destPath, overwrite: true);
+                        Logger.Log($"[GameSync] Deployed -> {fileName}");
                     }
 
-                    if (File.Exists(extractedWin))
-                    {
-                        // Backup original if not already backed up
-                        string backupPath = Path.Combine(gameDir, "data.win.original_backup");
-                        if (!File.Exists(backupPath) && File.Exists(dataWinPath))
-                            File.Copy(dataWinPath, backupPath, false);
-
-                        File.Copy(extractedWin, dataWinPath, true);
-                        Logger.Log($"[GameSync] Successfully copied {extractedWin} to {dataWinPath}.");
-                        onProgress($"* Successfully synchronized game data!");
-                        return true;
-                    }
+                    Logger.Log($"[GameSync] Complete game synchronization finished successfully!");
+                    onProgress($"* Game fully synchronized and ready!");
+                    return true;
                 }
                 catch (Exception ex)
                 {
                     Logger.LogError("GameIntegrityChecker", ex);
-                    onProgress($"* Game data sync warning: {ex.Message}");
+                    onProgress($"* Game sync warning: {ex.Message}");
                 }
 
                 return false;
