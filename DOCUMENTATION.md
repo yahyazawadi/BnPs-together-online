@@ -190,3 +190,29 @@ Using `UndertaleModLib`, the following bytecode transforms were applied to `data
   * *Fix:* Switched to framework-dependent single-file publish (`--self-contained false`), reducing the setup executable from **66 MB to 2.1 MB** and the release zip to **225 KB**.
 - **Problem: In-App 1-Click Updater:** Added `[↓] UPDATE TO LATEST VERSION` button with semantic version comparison (`tag_name == currentVersion`) to check GitHub Releases without redundant downloads.
 - **Problem: Missing Desktop Shortcut Icon:** Fixed `heart.ico` extraction directly into application root `{app}\heart.ico` and flushed the Windows shell icon cache.
+
+---
+
+## 9. Future Roadmap & Upcoming Planned Features
+
+### A. Core Architecture & Relay Evolution
+1. **Public Matchmaking & Lobby System (Zero-Config Connection):**
+   - Implement an optional lightweight signaling server / matchmaking lobby so players can join via 4-character Room Codes (e.g. `ABCD`) without manually exchanging ZeroTier network IDs or IP addresses.
+2. **Native Gamepad / XInput Controller Streaming:**
+   - Extend `LowLevelKeyboardHook` and `WindowsInputInjector` with `XInput` / DirectInput hooks to allow full controller play (DualShock, Xbox, Switch Pro controllers) with custom button remapping.
+3. **Automated GameMaker Bytecode Auto-Patcher:**
+   - Integrate the `UndertaleModLib` patching routine directly into `BnPRelay` on launch so users never have to run PowerShell scripts manually if their `data.win` contains console vibration or Switch symbols.
+
+### B. Battle & Game Synchronization Enhancements
+1. **Automatic Battle State Detection & Turn Lockstep:**
+   - Memory watcher for GameMaker global battle flags (`global.inbattle`, `global.myfight`) to automatically trigger `TurnSyncBarrier` without requiring manual sync hotkeys.
+2. **Dynamic Cutscene & Dialogue Synchronization:**
+   - Synchronize text progression and unskippable story sequences so both players experience narrative triggers, NPC dialogues, and boss transitions at identical frame rates.
+3. **Smart Delta Rollback & Network Ping Compensation:**
+   - Implement client-side input prediction and minor rollback buffering (< 50ms) to ensure smooth character movement even on higher ping connections.
+
+### C. Distribution & Community
+1. **Reddit & Community Showcase:**
+   - Post to `r/Undertale` and `r/UndertaleMods` showcasing how *Bits & Pieces Together* was converted from single-PC local co-op into true online peer-to-peer multiplayer.
+2. **Automated CI/CD GitHub Actions Pipeline:**
+   - Build and release new versions automatically on Git tag push with release notes and binary attachments.
