@@ -381,9 +381,37 @@ namespace BnPRelay
                     return;
                 }
 
-                // Find download URL for BnPRelay-Release.zip or Setup
+                // Prioritize Setup.exe installer if available in release assets
+                string setupPattern = @"""browser_download_url"":\s*""([^""]+Setup\.exe)""";
+                var setupMatch = System.Text.RegularExpressions.Regex.Match(json, setupPattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+
+                if (setupMatch.Success)
+                {
+                    string setupUrl = setupMatch.Groups[1].Value;
+                    SetStatus($"* Downloading v{latestTag} installer from GitHub...");
+                    string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BnPUpdate");
+                    System.IO.Directory.CreateDirectory(tempDir);
+                    string setupPath = System.IO.Path.Combine(tempDir, "BnP_Together_ONLINE_Setup.exe");
+
+                    byte[] setupBytes = await http.GetByteArrayAsync(setupUrl);
+                    await System.IO.File.WriteAllBytesAsync(setupPath, setupBytes);
+
+                    SetStatus("* Launching installer and restarting...");
+
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = setupPath,
+                        Arguments = "/SILENT /SUPPRESSMSGBOXES /FORCECLOSEAPPLICATIONS",
+                        UseShellExecute = true
+                    });
+
+                    Application.Current.Shutdown();
+                    return;
+                }
+
+                // Fallback for zip archive
                 string downloadUrl = "";
-                string pattern = @"""browser_download_url"":\s*""([^""]+BnPRelay-Release\.zip|[^""]+\.zip|[^""]+Setup\.exe)""";
+                string pattern = @"""browser_download_url"":\s*""([^""]+BnPRelay-Release\.zip|[^""]+\.zip)""";
                 var match = System.Text.RegularExpressions.Regex.Match(json, pattern, System.Text.RegularExpressions.RegexOptions.IgnoreCase);
                 if (match.Success)
                     downloadUrl = match.Groups[1].Value;
@@ -394,29 +422,23 @@ namespace BnPRelay
                 }
 
                 SetStatus($"* Downloading v{latestTag} update from GitHub...");
-                string tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BnPUpdate");
-                System.IO.Directory.CreateDirectory(tempDir);
-                string zipPath = System.IO.Path.Combine(tempDir, "update.zip");
+                string zipTempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "BnPUpdate");
+                System.IO.Directory.CreateDirectory(zipTempDir);
+                string zipPath = System.IO.Path.Combine(zipTempDir, "update.zip");
 
                 byte[] zipBytes = await http.GetByteArrayAsync(downloadUrl);
                 await System.IO.File.WriteAllBytesAsync(zipPath, zipBytes);
 
                 SetStatus("* Installing update and restarting...");
 
-                // Create detached updater batch script
                 string currentExe = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 string appDir = System.IO.Path.GetDirectoryName(currentExe) ?? "";
-                string batchScript = System.IO.Path.Combine(tempDir, "updater.bat");
+                string batchScript = System.IO.Path.Combine(zipTempDir, "updater.bat");
 
                 string batContent = $@"@echo off
-timeout /t 1 /nobreak > nul
-taskkill /F /IM BnPRelay.exe > nul 2>&1
-powershell.exe -NoProfile -Command ""Expand-Archive -Path '{zipPath}' -DestinationPath '{tempDir}\extracted' -Force""
-if exist ""{tempDir}\extracted\BnPRelay.exe"" (
-    copy /y ""{tempDir}\extracted\*.*"" ""{appDir}\"" > nul 2>&1
-)
-start """" ""{currentExe}""
-del /f /q ""{zipPath}""
+timeout /t 2 /nobreak > nul
+powershell.exe -NoProfile -ExecutionPolicy Bypass -Command ""try {{ Get-Process -Name 'BnPRelay' -ErrorAction SilentlyContinue | Stop-Process -Force }} catch {{}}; Start-Sleep -Seconds 1; Expand-Archive -Path '{zipPath}' -DestinationPath '{zipTempDir}\extracted' -Force; Copy-Item -Path '{zipTempDir}\extracted\*' -Destination '{appDir}' -Recurse -Force; Start-Process '{currentExe}'""
+exit
 ";
                 await System.IO.File.WriteAllTextAsync(batchScript, batContent);
 

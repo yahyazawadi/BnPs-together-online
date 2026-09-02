@@ -31,6 +31,25 @@ namespace BnPRelay
 
         protected override void OnStartup(StartupEventArgs e)
         {
+            AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
+            {
+                if (ev.ExceptionObject is Exception ex)
+                {
+                    Logger.LogError("AppDomain UnhandledException", ex);
+                    MessageBox.Show(ex.ToString(), "BnPRelay Fatal Error");
+                }
+            };
+
+            DispatcherUnhandledException += (s, ev) =>
+            {
+                Logger.LogError("DispatcherUnhandledException", ev.Exception);
+                MessageBox.Show(ev.Exception.ToString(), "BnPRelay Dispatcher Error");
+            };
+
+            Logger.Log("=== BnPRelay Starting ===");
+            Logger.Log($"Operating System: {Environment.OSVersion}");
+            Logger.Log($"Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
+
             // ─── SINGLE INSTANCE ENFORCEMENT ───
             try
             {
@@ -64,21 +83,6 @@ namespace BnPRelay
                 SetCurrentProcessExplicitAppUserModelID(AppUserModelId);
             }
             catch { }
-
-            Logger.Log("=== BnPRelay Started ===");
-            Logger.Log($"Operating System: {Environment.OSVersion}");
-            Logger.Log($"Base Directory: {AppDomain.CurrentDomain.BaseDirectory}");
-
-            AppDomain.CurrentDomain.UnhandledException += (s, ev) =>
-            {
-                if (ev.ExceptionObject is Exception ex)
-                    Logger.LogError("AppDomain UnhandledException", ex);
-            };
-
-            DispatcherUnhandledException += (s, ev) =>
-            {
-                Logger.LogError("DispatcherUnhandledException", ev.Exception);
-            };
 
             // Parse deep link: bnptogether://10.147.17.5
             if (e.Args.Length > 0)
