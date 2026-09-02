@@ -551,37 +551,15 @@ exit
             BtnLaunch.IsEnabled = false;
 
             // 1. Verify SHA256 integrity and automatically sync data.win ONLY if different or missing
-            await GameIntegrityChecker.EnsureGameFilesReadyAsync(_isHost, msg => Dispatcher.Invoke(() => SetStatus(msg)));
+            bool ready = await GameIntegrityChecker.EnsureGameFilesReadyAsync(_isHost, msg => Dispatcher.Invoke(() => SetStatus(msg)));
+            if (!ready)
+            {
+                BtnLaunch.IsEnabled = true;
+                return;
+            }
 
             _injector.Enable();
             SetStatus("* Game launched! Relaying inputs...");
-
-            // 2. Run local bytecode patcher as fallback/safety check
-            string role = _isHost ? "Host" : "Client";
-            try
-            {
-                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
-                string scriptPath = System.IO.Path.Combine(baseDir, "Patch-BnPDecoupledCollisions.ps1");
-                if (System.IO.File.Exists(scriptPath))
-                {
-                    Logger.Log($"Running auto-role patcher for {role}...");
-                    var psi = new ProcessStartInfo
-                    {
-                        FileName = "powershell.exe",
-                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Role {role}",
-                        WindowStyle = ProcessWindowStyle.Hidden,
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    };
-                    using var p = Process.Start(psi);
-                    p?.WaitForExit(5000);
-                    Logger.Log($"Auto-role patcher finished with exit code {p?.ExitCode}.");
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("AutoPatcher", ex);
-            }
 
             // Attach memory manager after game launches
             _ = Task.Run(async () =>
