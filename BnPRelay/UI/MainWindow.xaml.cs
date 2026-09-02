@@ -149,7 +149,7 @@ namespace BnPRelay
         /// Fires on every captured keypress. Converts to bitmask delta and
         /// sends over the network. The game still receives the keystroke directly.
         /// </summary>
-        private async void OnKeyStateChanged(Key key, bool isDown)
+        private void OnKeyStateChanged(Key key, bool isDown)
         {
             // Only relay when injection is enabled (after both clicked LAUNCH)
             if (!_injector.IsAttached) return;
@@ -158,14 +158,18 @@ namespace BnPRelay
             if (newMask.Value == _currentMask.Value) return;  // no change, skip
             _currentMask = newMask;
 
-            try
+            // Fire-and-forget on background pool to guarantee the low-level hook never blocks UI
+            _ = Task.Run(async () =>
             {
-                if (_isHost && _host != null)
-                    await _host.SendInputAsync(newMask);      // Host: relay P1 keys to client
-                else if (!_isHost && _client != null)
-                    await _client.SendInputAsync(newMask);    // Client: relay P2 keys to host
-            }
-            catch { /* session closed, ignore */ }
+                try
+                {
+                    if (_isHost && _host != null)
+                        await _host.SendInputAsync(newMask);      // Host: relay P1 keys to client
+                    else if (!_isHost && _client != null)
+                        await _client.SendInputAsync(newMask);    // Client: relay P2 keys to host
+                }
+                catch { /* session closed, ignore */ }
+            });
         }
 
         // ─── HOST ───────────────────────────────────────────────────────────────
