@@ -4,7 +4,7 @@
 ; =====================================================================
 
 #define MyAppName "BnP Together ONLINE"
-#define MyAppVersion "1.2.6"
+#define MyAppVersion "1.2.7"
 #define MyAppPublisher "Yahya Zawadi & BnP Together Online Team"
 #define MyAppURL "https://github.com/yahyazawadi/BnPs-together-online"
 #define MyAppExeName "BnPRelay.exe"

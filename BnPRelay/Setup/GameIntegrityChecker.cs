@@ -53,75 +53,86 @@ namespace BnPRelay.Setup
         /// </summary>
         public static async Task<bool> EnsureGameFilesReadyAsync(bool isHost, Action<string> onProgress)
         {
-            string? gameDir = GetUndertaleDirectory();
-            if (gameDir == null)
+            return await Task.Run(async () =>
             {
-                onProgress("* Undertale folder not found. Please install Undertale on Steam.");
+                string? gameDir = GetUndertaleDirectory();
+                if (gameDir == null)
+                {
+                    string err = "* Undertale folder not found. Please install Undertale on Steam.";
+                    Logger.Log($"[GameSync] {err}");
+                    onProgress(err);
+                    return false;
+                }
+
+                string dataWinPath = Path.Combine(gameDir, "data.win");
+                string expectedHash = isHost ? HostDataHash : ClientDataHash;
+                string roleName = isHost ? "Host (Player 1)" : "Client (Player 2)";
+
+                Logger.Log($"[GameSync] Verifying data.win for {roleName}...");
+                onProgress($"* Verifying game data for {roleName}...");
+
+                if (File.Exists(dataWinPath))
+                {
+                    string localHash = ComputeSha256(dataWinPath);
+                    Logger.Log($"[GameSync] Local hash:    {localHash}");
+                    Logger.Log($"[GameSync] Expected hash: {expectedHash}");
+
+                    if (string.Equals(localHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Logger.Log($"[GameSync] Hash verified for {roleName} — 100% up to date.");
+                        onProgress($"* Game data verified for {roleName} — 100% up to date!");
+                        return true;
+                    }
+                }
+
+                // Hash differs or missing — download pre-patched data.win package
+                Logger.Log($"[GameSync] Hash mismatch or missing. Downloading pre-patched {roleName} package (35 MB)...");
+                onProgress($"* Updating {roleName} data.win (35 MB)...");
+                string downloadUrl = isHost ? HostDataUrl : ClientDataUrl;
+                string tempDir = Path.Combine(Path.GetTempPath(), "BnPDataSync");
+                Directory.CreateDirectory(tempDir);
+                string zipPath = Path.Combine(tempDir, isHost ? "data_host.win.zip" : "data_client.win.zip");
+
+                try
+                {
+                    using var http = new HttpClient();
+                    http.DefaultRequestHeaders.UserAgent.ParseAdd("BnPRelay-GameSync");
+                    byte[] zipBytes = await http.GetByteArrayAsync(downloadUrl);
+                    await File.WriteAllBytesAsync(zipPath, zipBytes);
+                    Logger.Log($"[GameSync] Downloaded {zipBytes.Length} bytes.");
+
+                    onProgress("* Extracting and applying verified game data...");
+                    string extractDir = Path.Combine(tempDir, "extracted");
+                    if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
+                    ZipFile.ExtractToDirectory(zipPath, extractDir);
+
+                    string extractedWin = Path.Combine(extractDir, isHost ? "data_host.win" : "data_client.win");
+                    if (!File.Exists(extractedWin))
+                    {
+                        string fallback = Path.Combine(extractDir, "data.win");
+                        if (File.Exists(fallback)) extractedWin = fallback;
+                    }
+
+                    if (File.Exists(extractedWin))
+                    {
+                        string backupPath = Path.Combine(gameDir, "data.win.original_backup");
+                        if (!File.Exists(backupPath) && File.Exists(dataWinPath))
+                            File.Copy(dataWinPath, backupPath, false);
+
+                        File.Copy(extractedWin, dataWinPath, true);
+                        Logger.Log($"[GameSync] Successfully copied {extractedWin} to {dataWinPath}.");
+                        onProgress($"* Successfully synchronized {roleName} data.win!");
+                        return true;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.LogError("GameIntegrityChecker", ex);
+                    onProgress($"* Game data sync warning: {ex.Message}");
+                }
+
                 return false;
-            }
-
-            string dataWinPath = Path.Combine(gameDir, "data.win");
-            string expectedHash = isHost ? HostDataHash : ClientDataHash;
-            string roleName = isHost ? "Host (Player 1)" : "Client (Player 2)";
-
-            onProgress($"* Verifying game data for {roleName}...");
-
-            if (File.Exists(dataWinPath))
-            {
-                string localHash = await Task.Run(() => ComputeSha256(dataWinPath));
-                if (string.Equals(localHash, expectedHash, StringComparison.OrdinalIgnoreCase))
-                {
-                    onProgress($"* Game data verified for {roleName} — 100% up to date!");
-                    return true;
-                }
-            }
-
-            // Hash differs or missing — download pre-patched data.win package
-            onProgress($"* Updating {roleName} data.win (35 MB)...");
-            string downloadUrl = isHost ? HostDataUrl : ClientDataUrl;
-            string tempDir = Path.Combine(Path.GetTempPath(), "BnPDataSync");
-            Directory.CreateDirectory(tempDir);
-            string zipPath = Path.Combine(tempDir, isHost ? "data_host.win.zip" : "data_client.win.zip");
-
-            try
-            {
-                using var http = new HttpClient();
-                http.DefaultRequestHeaders.UserAgent.ParseAdd("BnPRelay-GameSync");
-                byte[] zipBytes = await http.GetByteArrayAsync(downloadUrl);
-                await File.WriteAllBytesAsync(zipPath, zipBytes);
-
-                onProgress("* Extracting and applying verified game data...");
-                string extractDir = Path.Combine(tempDir, "extracted");
-                if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
-                ZipFile.ExtractToDirectory(zipPath, extractDir);
-
-                string extractedWin = Path.Combine(extractDir, isHost ? "data_host.win" : "data_client.win");
-                if (!File.Exists(extractedWin))
-                {
-                    // Check if extracted as data.win
-                    string fallback = Path.Combine(extractDir, "data.win");
-                    if (File.Exists(fallback)) extractedWin = fallback;
-                }
-
-                if (File.Exists(extractedWin))
-                {
-                    // Backup original if not already backed up
-                    string backupPath = Path.Combine(gameDir, "data.win.original_backup");
-                    if (!File.Exists(backupPath) && File.Exists(dataWinPath))
-                        File.Copy(dataWinPath, backupPath, false);
-
-                    File.Copy(extractedWin, dataWinPath, true);
-                    onProgress($"* Successfully synchronized {roleName} data.win!");
-                    return true;
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.LogError("GameIntegrityChecker", ex);
-                onProgress($"* Game data sync warning: {ex.Message}");
-            }
-
-            return false;
+            });
         }
     }
 }
