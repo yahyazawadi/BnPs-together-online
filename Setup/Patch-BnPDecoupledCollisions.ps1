@@ -13,17 +13,49 @@
 # ==============================================================================
 
 param(
-    [string]$UndertaleDataWinPath = "C:\Program Files (x86)\Steam\steamapps\common\Undertale\data.win",
-    [string]$UtmtLibPath = "C:\Users\CLICK\Downloads\UTMT_CLI\UndertaleModLib.dll",
+    [string]$UndertaleDataWinPath = "",
+    [string]$UtmtLibPath = "",
     [ValidateSet("Host", "Client")]
     [string]$Role = "Host"
 )
 
 $ErrorActionPreference = "Stop"
 
+# Auto-detect Undertale data.win if not explicitly passed
+if ([string]::IsNullOrWhiteSpace($UndertaleDataWinPath) -or -not (Test-Path $UndertaleDataWinPath)) {
+    $candidates = @(
+        "C:\Program Files (x86)\Steam\steamapps\common\Undertale\data.win",
+        "C:\Program Files\Steam\steamapps\common\Undertale\data.win",
+        "D:\SteamLibrary\steamapps\common\Undertale\data.win",
+        "E:\SteamLibrary\steamapps\common\Undertale\data.win",
+        "F:\SteamLibrary\steamapps\common\Undertale\data.win"
+    )
+    foreach ($cand in $candidates) {
+        if (Test-Path $cand) {
+            $UndertaleDataWinPath = $cand
+            break
+        }
+    }
+}
+
 if (-not (Test-Path $UndertaleDataWinPath)) {
     Write-Error "Could not find data.win at: $UndertaleDataWinPath"
     exit 1
+}
+
+# Auto-detect UndertaleModLib.dll if not explicitly passed
+if ([string]::IsNullOrWhiteSpace($UtmtLibPath) -or -not (Test-Path $UtmtLibPath)) {
+    $utmtCandidates = @(
+        "$PSScriptRoot\UndertaleModLib.dll",
+        "$env:LOCALAPPDATA\Programs\BnP Together ONLINE\UndertaleModLib.dll",
+        "C:\Users\CLICK\Downloads\UTMT_CLI\UndertaleModLib.dll"
+    )
+    foreach ($uc in $utmtCandidates) {
+        if (Test-Path $uc) {
+            $UtmtLibPath = $uc
+            break
+        }
+    }
 }
 
 if (-not (Test-Path $UtmtLibPath)) {
@@ -31,7 +63,7 @@ if (-not (Test-Path $UtmtLibPath)) {
     exit 1
 }
 
-Write-Host "Loading UndertaleModLib..." -ForegroundColor Cyan
+Write-Host "Loading UndertaleModLib from $UtmtLibPath..." -ForegroundColor Cyan
 Add-Type -Path $UtmtLibPath
 
 Write-Host "Reading $UndertaleDataWinPath..." -ForegroundColor Cyan

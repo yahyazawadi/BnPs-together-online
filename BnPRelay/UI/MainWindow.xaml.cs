@@ -523,6 +523,33 @@ exit
             SetStatus("* Game launched! Relaying inputs...");
             BtnLaunch.IsEnabled = false;
 
+            // Auto-configure Undertale bytecode for current role (Host=P1, Client=P2)
+            string role = _isHost ? "Host" : "Client";
+            try
+            {
+                string baseDir = AppDomain.CurrentDomain.BaseDirectory;
+                string scriptPath = System.IO.Path.Combine(baseDir, "Patch-BnPDecoupledCollisions.ps1");
+                if (System.IO.File.Exists(scriptPath))
+                {
+                    Logger.Log($"Running auto-role patcher for {role}...");
+                    var psi = new ProcessStartInfo
+                    {
+                        FileName = "powershell.exe",
+                        Arguments = $"-NoProfile -ExecutionPolicy Bypass -File \"{scriptPath}\" -Role {role}",
+                        WindowStyle = ProcessWindowStyle.Hidden,
+                        CreateNoWindow = true,
+                        UseShellExecute = false
+                    };
+                    using var p = Process.Start(psi);
+                    p?.WaitForExit(10000);
+                    Logger.Log($"Auto-role patcher finished with exit code {p?.ExitCode}.");
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.LogError("AutoPatcher", ex);
+            }
+
             // Attach memory manager after game launches
             _ = Task.Run(async () =>
             {
