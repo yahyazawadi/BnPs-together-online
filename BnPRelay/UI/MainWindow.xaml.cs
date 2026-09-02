@@ -172,8 +172,8 @@ namespace BnPRelay
             _host.StatusChanged         += s => Dispatcher.Invoke(() => SetStatus(s));
             _host.LatencyUpdated        += ms => Dispatcher.Invoke(() => TxtLatency.Text = $"* Ping: {ms}ms");
             _host.RemoteInputReceived   += mask => _injector.InjectDelta(mask);
-            _host.ClientConnected       += () => Dispatcher.Invoke(OnConnected);
-            _host.ClientDisconnected    += () => Dispatcher.Invoke(OnDisconnected);
+            _host.ClientConnected       += () => Dispatcher.Invoke(() => OnConnected());
+            _host.ClientDisconnected    += () => Dispatcher.Invoke(() => OnDisconnected("Client disconnected"));
 
             // Wire state reception on host
             _host.OverworldStateReceived += state => _stateProvider.UpdateOverworld(state);
@@ -256,7 +256,7 @@ namespace BnPRelay
             };
             _client.AttackGoReceived    += idx => _turnSync?.OnAttackGoReceived(idx);
             _client.WaveFinishedReceived += turnIdx => _turnSync?.OnClientWaveFinishedReceived(turnIdx);
-            _client.HostConnected       += () => Dispatcher.Invoke(OnConnected);
+            _client.HostConnected       += () => Dispatcher.Invoke(() => OnConnected());
             _client.HostDisconnected    += () => Dispatcher.Invoke(() => OnDisconnected($"Connecting to {ip} failed"));
             _client.ConnectionFailed    += reason => Dispatcher.Invoke(() =>
             {
