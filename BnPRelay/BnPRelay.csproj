@@ -12,13 +12,14 @@
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>false</SelfContained>
     <ApplicationIcon>UI\Assets\heart.ico</ApplicationIcon>
-    <Version>1.2.14</Version>
-    <AssemblyVersion>1.2.14.0</AssemblyVersion>
-    <FileVersion>1.2.14.0</FileVersion>
+    <Version>1.2.15</Version>
+    <AssemblyVersion>1.2.15.0</AssemblyVersion>
+    <FileVersion>1.2.15.0</FileVersion>
   </PropertyGroup>
 
   <ItemGroup>
     <Resource Include="UI\Assets\**\*" />
+    <EmbeddedResource Include="Setup\GameManifest.json" />
   </ItemGroup>
 
 </Project>
