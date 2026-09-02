@@ -26,19 +26,22 @@ namespace BnPRelay
         private const uint WM_KEYDOWN = 0x0100;
         private const uint WM_KEYUP   = 0x0101;
 
-        // P2 virtual key codes
-        private const int VK_W = 0x57;
-        private const int VK_A = 0x41;
-        private const int VK_S = 0x53;
-        private const int VK_D = 0x44;
-        private const int VK_F = 0x46;
-        private const int VK_G = 0x47;
-
-        // Standard Undertale Confirm / Skip keys
+        // P1 virtual key codes
+        private const int VK_LEFT   = 0x25;
+        private const int VK_UP     = 0x26;
+        private const int VK_RIGHT  = 0x27;
+        private const int VK_DOWN   = 0x28;
         private const int VK_Z      = 0x5A;
+        private const int VK_X      = 0x58;
         private const int VK_C      = 0x43;
-        private const int VK_RETURN = 0x0D;
-        private const int VK_SPACE  = 0x20;
+
+        // P2 virtual key codes
+        private const int VK_W      = 0x57;
+        private const int VK_A      = 0x41;
+        private const int VK_S      = 0x53;
+        private const int VK_D      = 0x44;
+        private const int VK_F      = 0x46;
+        private const int VK_G      = 0x47;
 
         private IntPtr _hwnd = IntPtr.Zero;
         private InputBitmask _lastMask;
@@ -84,22 +87,30 @@ namespace BnPRelay
         public event Action<IntPtr>? OnWindowFound;
 
         /// <summary>Inject the full bitmask state — sends KEYDOWN/KEYUP for any changed bits.</summary>
-        public void InjectDelta(InputBitmask newMask)
+        public void InjectDelta(InputBitmask newMask, bool isHost = true)
         {
             if (_hwnd == IntPtr.Zero || !_enabled) return;
 
-            // Player 2 Movement & Actions
-            ApplyKey(VK_W, _lastMask.Up,      newMask.Up);
-            ApplyKey(VK_A, _lastMask.Left,    newMask.Left);
-            ApplyKey(VK_S, _lastMask.Down,    newMask.Down);
-            ApplyKey(VK_D, _lastMask.Right,   newMask.Right);
-            ApplyKey(VK_F, _lastMask.Confirm, newMask.Confirm);
-            ApplyKey(VK_G, _lastMask.Cancel,  newMask.Cancel);
-
-            // Also forward Confirm / Skip keys (Z, Enter, Space) so Host skipping the intro or menus advances Client immediately
-            ApplyKey(VK_Z,      _lastMask.Confirm, newMask.Confirm);
-            ApplyKey(VK_RETURN, _lastMask.Confirm, newMask.Confirm);
-            ApplyKey(VK_SPACE,  _lastMask.Confirm, newMask.Confirm);
+            if (isHost)
+            {
+                // Host receives Client (P2) inputs -> Injects P2 WASD/F/G keys
+                ApplyKey(VK_W, _lastMask.Up,      newMask.Up);
+                ApplyKey(VK_A, _lastMask.Left,    newMask.Left);
+                ApplyKey(VK_S, _lastMask.Down,    newMask.Down);
+                ApplyKey(VK_D, _lastMask.Right,   newMask.Right);
+                ApplyKey(VK_F, _lastMask.Confirm, newMask.Confirm);
+                ApplyKey(VK_G, _lastMask.Cancel,  newMask.Cancel);
+            }
+            else
+            {
+                // Client receives Host (P1) inputs -> Injects P1 Arrow/Z/X keys
+                ApplyKey(VK_UP,    _lastMask.Up,      newMask.Up);
+                ApplyKey(VK_LEFT,  _lastMask.Left,    newMask.Left);
+                ApplyKey(VK_DOWN,  _lastMask.Down,    newMask.Down);
+                ApplyKey(VK_RIGHT, _lastMask.Right,   newMask.Right);
+                ApplyKey(VK_Z,     _lastMask.Confirm, newMask.Confirm);
+                ApplyKey(VK_X,     _lastMask.Cancel,  newMask.Cancel);
+            }
 
             _lastMask = newMask;
         }
@@ -125,7 +136,7 @@ namespace BnPRelay
         private void ReleaseAll()
         {
             if (_hwnd == IntPtr.Zero) return;
-            foreach (var vk in new[] { VK_W, VK_A, VK_S, VK_D, VK_F, VK_G })
+            foreach (var vk in new[] { VK_W, VK_A, VK_S, VK_D, VK_F, VK_G, VK_UP, VK_LEFT, VK_DOWN, VK_RIGHT, VK_Z, VK_X })
                 PostMessage(_hwnd, WM_KEYUP, (IntPtr)vk, IntPtr.Zero);
             _lastMask = default;
         }

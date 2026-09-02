@@ -173,7 +173,7 @@ namespace BnPRelay
             _host = new HostSession();
             _host.StatusChanged         += s => Dispatcher.Invoke(() => SetStatus(s));
             _host.LatencyUpdated        += ms => Dispatcher.Invoke(() => TxtLatency.Text = $"* Ping: {ms}ms");
-            _host.RemoteInputReceived   += mask => _injector.InjectDelta(mask);
+            _host.RemoteInputReceived   += mask => _injector.InjectDelta(mask, isHost: true);
             _host.ClientConnected       += () => Dispatcher.Invoke(() => OnConnected());
             _host.ClientDisconnected    += () => Dispatcher.Invoke(() => OnDisconnected("Client disconnected"));
 
@@ -242,7 +242,7 @@ namespace BnPRelay
             _client = new ClientSession(ip);
             _client.StatusChanged       += s => Dispatcher.Invoke(() => SetStatus(s));
             _client.LatencyUpdated      += ms => Dispatcher.Invoke(() => TxtLatency.Text = $"* Ping: {ms}ms");
-            _client.RemoteInputReceived += mask => _injector.InjectDelta(mask);
+            _client.RemoteInputReceived += mask => _injector.InjectDelta(mask, isHost: false);
             _client.SaveFileReceived    += (name, data) => SaveFileMirror.WriteSaveFile(name, data);
 
             // Wire state reception on client

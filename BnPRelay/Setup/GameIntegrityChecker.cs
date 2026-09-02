@@ -13,11 +13,8 @@ namespace BnPRelay.Setup
     /// </summary>
     public static class GameIntegrityChecker
     {
-        public const string HostDataHash = "FB0109E4D1D6165D9ECAB56274AB23B712FA40B57D52DA470F018437FDCD9283";
-        public const string ClientDataHash = "1A06974EF26A7AADBB7310114809398C3D916B1CFF1AB305DE874F387100D0E5";
-
-        private const string HostDataUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.4/data_host.win.zip";
-        private const string ClientDataUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.4/data_client.win.zip";
+        public const string UnifiedDataHash = "366ACE82B8A12E98E56DAC1EE77DE4EBF0F03D3199AFA6189E9D68FE0C76AEAE";
+        private const string UnifiedDataUrl = "https://github.com/yahyazawadi/BnPs-together-online/releases/download/v1.2.8/data_unified.win.zip";
 
         private static readonly string[] CommonPaths = {
             @"C:\Program Files (x86)\Steam\steamapps\common\Undertale",
@@ -47,7 +44,7 @@ namespace BnPRelay.Setup
         }
 
         /// <summary>
-        /// Checks if the local data.win matches the expected role hash.
+        /// Checks if the local data.win matches the verified unified hash.
         /// If already valid, finishes instantly without downloading.
         /// If different or missing, downloads and swaps the verified pre-patched file.
         /// </summary>
@@ -65,7 +62,6 @@ namespace BnPRelay.Setup
                 }
 
                 string dataWinPath = Path.Combine(gameDir, "data.win");
-                string expectedHash = isHost ? HostDataHash : ClientDataHash;
                 string roleName = isHost ? "Host (Player 1)" : "Client (Player 2)";
 
                 Logger.Log($"[GameSync] Verifying data.win for {roleName}...");
@@ -75,29 +71,28 @@ namespace BnPRelay.Setup
                 {
                     string localHash = ComputeSha256(dataWinPath);
                     Logger.Log($"[GameSync] Local hash:    {localHash}");
-                    Logger.Log($"[GameSync] Expected hash: {expectedHash}");
+                    Logger.Log($"[GameSync] Expected hash: {UnifiedDataHash}");
 
-                    if (string.Equals(localHash, expectedHash, StringComparison.OrdinalIgnoreCase))
+                    if (string.Equals(localHash, UnifiedDataHash, StringComparison.OrdinalIgnoreCase))
                     {
                         Logger.Log($"[GameSync] Hash verified for {roleName} — 100% up to date.");
-                        onProgress($"* Game data verified for {roleName} — 100% up to date!");
+                        onProgress($"* Game data verified — 100% up to date!");
                         return true;
                     }
                 }
 
                 // Hash differs or missing — download pre-patched data.win package
-                Logger.Log($"[GameSync] Hash mismatch or missing. Downloading pre-patched {roleName} package (35 MB)...");
-                onProgress($"* Updating {roleName} data.win (35 MB)...");
-                string downloadUrl = isHost ? HostDataUrl : ClientDataUrl;
+                Logger.Log($"[GameSync] Hash mismatch or missing. Downloading verified game data package (35 MB)...");
+                onProgress($"* Synchronizing verified game data (35 MB)...");
                 string tempDir = Path.Combine(Path.GetTempPath(), "BnPDataSync");
                 Directory.CreateDirectory(tempDir);
-                string zipPath = Path.Combine(tempDir, isHost ? "data_host.win.zip" : "data_client.win.zip");
+                string zipPath = Path.Combine(tempDir, "data_unified.win.zip");
 
                 try
                 {
                     using var http = new HttpClient();
                     http.DefaultRequestHeaders.UserAgent.ParseAdd("BnPRelay-GameSync");
-                    byte[] zipBytes = await http.GetByteArrayAsync(downloadUrl);
+                    byte[] zipBytes = await http.GetByteArrayAsync(UnifiedDataUrl);
                     await File.WriteAllBytesAsync(zipPath, zipBytes);
                     Logger.Log($"[GameSync] Downloaded {zipBytes.Length} bytes.");
 
@@ -106,7 +101,7 @@ namespace BnPRelay.Setup
                     if (Directory.Exists(extractDir)) Directory.Delete(extractDir, true);
                     ZipFile.ExtractToDirectory(zipPath, extractDir);
 
-                    string extractedWin = Path.Combine(extractDir, isHost ? "data_host.win" : "data_client.win");
+                    string extractedWin = Path.Combine(extractDir, "data_unified.win");
                     if (!File.Exists(extractedWin))
                     {
                         string fallback = Path.Combine(extractDir, "data.win");
@@ -115,13 +110,14 @@ namespace BnPRelay.Setup
 
                     if (File.Exists(extractedWin))
                     {
+                        // Backup original if not already backed up
                         string backupPath = Path.Combine(gameDir, "data.win.original_backup");
                         if (!File.Exists(backupPath) && File.Exists(dataWinPath))
                             File.Copy(dataWinPath, backupPath, false);
 
                         File.Copy(extractedWin, dataWinPath, true);
                         Logger.Log($"[GameSync] Successfully copied {extractedWin} to {dataWinPath}.");
-                        onProgress($"* Successfully synchronized {roleName} data.win!");
+                        onProgress($"* Successfully synchronized game data!");
                         return true;
                     }
                 }
