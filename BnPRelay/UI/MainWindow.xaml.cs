@@ -582,9 +582,9 @@ exit
             {
                 await Task.Delay(3000); // give game time to boot
                 if (_mem.Attach())
-                    Dispatcher.Invoke(() => SetStatus("* Relay active — memory attached!"));
+                    SetStatus("* Relay active — memory attached!");
                 else
-                    Dispatcher.Invoke(() => SetStatus("* Relay active (memory attach failed — RNG sync limited)"));
+                    SetStatus("* Relay active (memory attach failed — RNG sync limited)");
             });
 
             // Launch Undertale directly if found, otherwise via Steam AppID 391540
@@ -701,7 +701,17 @@ exit
             return "127.0.0.1";
         }
 
-        private void SetStatus(string msg) => TxtStatus.Text = msg;
+        private void SetStatus(string msg)
+        {
+            Dispatcher.InvokeAsync(() =>
+            {
+                try
+                {
+                    if (TxtStatus != null) TxtStatus.Text = msg;
+                }
+                catch { }
+            });
+        }
 
         // ─── LIVE DEBUG LOG CONSOLE ──────────────────────────────────────────
 

@@ -13,7 +13,7 @@ namespace BnPRelay.Setup
     public static class UpdateChecker
     {
         private const string RepoApiUrl = "https://api.github.com/repos/yahyazawadi/BnPs-together-online/releases/latest";
-        public const string CurrentVersion = "v1.2.12";
+        public const string CurrentVersion = "v1.2.13";
 
         public record ReleaseInfo(string TagName, string DownloadUrl, string Body);
 

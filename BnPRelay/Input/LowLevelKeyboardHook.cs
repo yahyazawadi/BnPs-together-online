@@ -74,18 +74,27 @@ namespace BnPRelay
         {
             if (nCode >= 0)
             {
-                var kb = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
-                bool isDown = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
-                bool isUp   = wParam == WM_KEYUP   || wParam == WM_SYSKEYUP;
-
-                if (isDown || isUp)
+                try
                 {
-                    var key = KeyInterop.KeyFromVirtualKey((int)kb.vkCode);
-                    if (IsRelayKey(key))
-                        KeyStateChanged?.Invoke(key, isDown);
+                    var kb = Marshal.PtrToStructure<KBDLLHOOKSTRUCT>(lParam);
+                    bool isDown = wParam == WM_KEYDOWN || wParam == WM_SYSKEYDOWN;
+                    bool isUp   = wParam == WM_KEYUP   || wParam == WM_SYSKEYUP;
+
+                    if (isDown || isUp)
+                    {
+                        var key = KeyInterop.KeyFromVirtualKey((int)kb.vkCode);
+                        if (IsRelayKey(key))
+                        {
+                            ThreadPool.QueueUserWorkItem(_ =>
+                            {
+                                try { KeyStateChanged?.Invoke(key, isDown); } catch { }
+                            });
+                        }
+                    }
                 }
+                catch { }
             }
-            // ALWAYS pass through — never suppress keypresses
+            // ALWAYS pass through immediately — never delay or block the OS message pump
             return CallNextHookEx(_hookHandle, nCode, wParam, lParam);
         }
 
