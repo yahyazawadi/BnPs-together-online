@@ -162,6 +162,7 @@ namespace BnPRelay
             _isHost = true;
             PanelConnect.Visibility  = Visibility.Collapsed;
             PanelHosting.Visibility  = Visibility.Visible;
+            BtnDisconnectReturn.Visibility = Visibility.Visible;
 
             // Display local ZeroTier IP (first non-loopback)
             string ip = GetLocalIp();
@@ -234,6 +235,7 @@ namespace BnPRelay
 
             _isHost = false;
             PanelConnect.Visibility = Visibility.Collapsed;
+            BtnDisconnectReturn.Visibility = Visibility.Visible;
             SetStatus($"Connecting to {ip}...");
 
             _client = new ClientSession(ip);
@@ -302,12 +304,38 @@ namespace BnPRelay
         {
             _client?.Dispose();
             _client = null;
+            _injector.Disable();
+            _turnSync = null;
+
             OverlayDisconnect.Visibility = Visibility.Collapsed;
             PanelConnected.Visibility = Visibility.Collapsed;
             PanelHosting.Visibility = Visibility.Collapsed;
             PanelConnect.Visibility = Visibility.Visible;
             PanelJoinInput.Visibility = Visibility.Visible;
+            BtnDisconnectReturn.Visibility = Visibility.Collapsed;
             SetStatus("Connection cancelled. Enter host IP and try again.");
+        }
+
+        private void BtnDisconnectReturn_Click(object sender, RoutedEventArgs e)
+        {
+            _host?.Dispose();
+            _host = null;
+            _client?.Dispose();
+            _client = null;
+            _injector.Disable();
+            _turnSync = null;
+
+            OverlayDisconnect.Visibility = Visibility.Collapsed;
+            PanelConnected.Visibility = Visibility.Collapsed;
+            PanelHosting.Visibility = Visibility.Collapsed;
+            PanelConnect.Visibility = Visibility.Visible;
+            PanelJoinInput.Visibility = Visibility.Collapsed;
+            BtnDisconnectReturn.Visibility = Visibility.Collapsed;
+            BtnLaunch.IsEnabled = true;
+            BtnHost.IsEnabled = true;
+            BtnJoin.IsEnabled = true;
+
+            SetStatus("* Disconnected. Returned to main menu.");
         }
 
         private void BtnJoinZeroTier_Click(object sender, RoutedEventArgs e)

@@ -164,11 +164,16 @@
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
                 <TextBlock Grid.Column="0" x:Name="TxtStatus"
                            Style="{StaticResource PixelTextSmall}"
                            VerticalAlignment="Center" TextWrapping="Wrap"/>
-                <Button Grid.Column="1" x:Name="BtnToggleLogs" Content="[▼ LOGS]"
+                <Button Grid.Column="1" x:Name="BtnDisconnectReturn" Content="[DISCONNECT]"
+                        Style="{StaticResource PixelButton}" Margin="8,0,0,0"
+                        Foreground="#FF8080" BorderBrush="#FF8080"
+                        Click="BtnDisconnectReturn_Click" Visibility="Collapsed"/>
+                <Button Grid.Column="2" x:Name="BtnToggleLogs" Content="[▼ LOGS]"
                         Style="{StaticResource PixelButton}" Margin="8,0,0,0"
                         Click="BtnToggleLogs_Click"/>
             </Grid>
